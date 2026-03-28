@@ -1,8 +1,10 @@
 import Testing
 @testable import ImageCleaner
 
-struct ImageCleanerTests {
-    @Test func appLaunches() async throws {
-        #expect(true)
-    }
-}
+// All tests are in dedicated files:
+// - CheckboxToggleStyleTests.swift
+// - AppThemeTests.swift
+// - AppearanceModeTests.swift
+// - CleaningSessionTests.swift
+// - HomeViewModelTests.swift
+// - HomeDestinationTests.swift

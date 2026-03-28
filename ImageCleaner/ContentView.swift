@@ -3,12 +3,11 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppTheme.self) private var theme
     @Environment(\.colorScheme) private var colorScheme
-    @State private var forceRescan = false
+    @State private var viewModel = HomeViewModel()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $viewModel.navigationPath) {
             VStack(alignment: .leading, spacing: 0) {
-                // Logo
                 AppIconView(
                     foreground: colorScheme == .dark ? .white : .black,
                     invertedForeground: colorScheme == .dark ? .black : .white
@@ -18,26 +17,27 @@ struct ContentView: View {
 
                 Spacer()
 
-                // SCAN button
                 VStack(alignment: .leading, spacing: 12) {
-                    NavigationLink {
-                        ScanView()
+                    Button {
+                        viewModel.navigateToScan()
                     } label: {
                         Text("SCAN")
                             .font(AppFont.largeTitle)
                             .tracking(2)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
                     }
+                    .accessibilityLabel("Start scan")
 
-                    NavigationLink {
-                        ResultsView()
+                    Button {
+                        viewModel.navigateToResults()
                     } label: {
                         Text("View Last Results")
                             .font(AppFont.subheadline)
                             .foregroundStyle(.secondary)
                     }
+                    .accessibilityLabel("View last scan results")
 
-                    Toggle(isOn: $forceRescan) {
+                    Toggle(isOn: $viewModel.forceRescan) {
                         Text("Force Re-Scan")
                             .font(AppFont.subheadline)
                     }
@@ -51,11 +51,19 @@ struct ContentView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    NavigationLink {
-                        SettingsView()
-                    } label: {
+                    NavigationLink(value: HomeDestination.settings) {
                         Label("Settings", systemImage: "gearshape")
                     }
+                }
+            }
+            .navigationDestination(for: HomeDestination.self) { destination in
+                switch destination {
+                case .scan:
+                    ScanView()
+                case .results:
+                    ResultsView()
+                case .settings:
+                    SettingsView()
                 }
             }
         }
