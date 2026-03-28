@@ -24,9 +24,9 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		D7A020D71AFB460DABE08F3F /* ImageCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		3D7897FE13CE45E5A8AA71CB /* ImageCleanerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageCleanerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5391A83564D045B2BFFD31CF /* ImageCleanerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageCleanerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D7A020D71AFB460DABE08F3F /* ImageCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -72,16 +72,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		EF471DC613354B7D95FE3160 = {
-			isa = PBXGroup;
-			children = (
-				3CD153E180274F19B4579AD5 /* ImageCleaner */,
-				B5886A5F48D34CE3975BF64E /* ImageCleanerTests */,
-				F6D16056166B4C1E8ED26C95 /* ImageCleanerUITests */,
-				3ED82F24D3BA42628DC46BFE /* Products */,
-			);
-			sourceTree = "<group>";
-		};
 		3ED82F24D3BA42628DC46BFE /* Products */ = {
 			isa = PBXGroup;
 			children = (
@@ -92,30 +82,41 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		EF471DC613354B7D95FE3160 = {
+			isa = PBXGroup;
+			children = (
+				3CD153E180274F19B4579AD5 /* ImageCleaner */,
+				B5886A5F48D34CE3975BF64E /* ImageCleanerTests */,
+				F6D16056166B4C1E8ED26C95 /* ImageCleanerUITests */,
+				3ED82F24D3BA42628DC46BFE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		F211FE69A6A04C09B15E11D2 /* ImageCleaner */ = {
+		9C2C7F0711B94513B557A602 /* ImageCleanerUITests */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 084CD80A818243E69E593D5A /* Build configuration list for PBXNativeTarget "ImageCleaner" */;
+			buildConfigurationList = 2D2CBC43A39C4EA0A09D885F /* Build configuration list for PBXNativeTarget "ImageCleanerUITests" */;
 			buildPhases = (
-				1BAC5EFC1C6F43EFBCFB76CD /* Sources */,
-				39789D61710D4AE9BE4696A4 /* Frameworks */,
-				970518F57E8D411D96521B0A /* Resources */,
+				DC8BC71A3123465EB36AA27E /* Sources */,
+				F2A90E5574DB4ABEA15E4615 /* Frameworks */,
+				57E11E5B90C0444695EDEF47 /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				D141B3C092D041C181D1AA06 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				3CD153E180274F19B4579AD5 /* ImageCleaner */,
+				F6D16056166B4C1E8ED26C95 /* ImageCleanerUITests */,
 			);
-			name = ImageCleaner;
+			name = ImageCleanerUITests;
 			packageProductDependencies = (
 			);
-			productName = ImageCleaner;
-			productReference = D7A020D71AFB460DABE08F3F /* ImageCleaner.app */;
-			productType = "com.apple.product-type.application";
+			productName = ImageCleanerUITests;
+			productReference = 5391A83564D045B2BFFD31CF /* ImageCleanerUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
 		};
 		AD8EA25A10444728A1696B4F /* ImageCleanerTests */ = {
 			isa = PBXNativeTarget;
@@ -140,28 +141,27 @@
 			productReference = 3D7897FE13CE45E5A8AA71CB /* ImageCleanerTests.xctest */;
 			productType = "com.apple.product-type.bundle.unit-test";
 		};
-		9C2C7F0711B94513B557A602 /* ImageCleanerUITests */ = {
+		F211FE69A6A04C09B15E11D2 /* ImageCleaner */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 2D2CBC43A39C4EA0A09D885F /* Build configuration list for PBXNativeTarget "ImageCleanerUITests" */;
+			buildConfigurationList = 084CD80A818243E69E593D5A /* Build configuration list for PBXNativeTarget "ImageCleaner" */;
 			buildPhases = (
-				DC8BC71A3123465EB36AA27E /* Sources */,
-				F2A90E5574DB4ABEA15E4615 /* Frameworks */,
-				57E11E5B90C0444695EDEF47 /* Resources */,
+				1BAC5EFC1C6F43EFBCFB76CD /* Sources */,
+				39789D61710D4AE9BE4696A4 /* Frameworks */,
+				970518F57E8D411D96521B0A /* Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
-				D141B3C092D041C181D1AA06 /* PBXTargetDependency */,
 			);
 			fileSystemSynchronizedGroups = (
-				F6D16056166B4C1E8ED26C95 /* ImageCleanerUITests */,
+				3CD153E180274F19B4579AD5 /* ImageCleaner */,
 			);
-			name = ImageCleanerUITests;
+			name = ImageCleaner;
 			packageProductDependencies = (
 			);
-			productName = ImageCleanerUITests;
-			productReference = 5391A83564D045B2BFFD31CF /* ImageCleanerUITests.xctest */;
-			productType = "com.apple.product-type.bundle.ui-testing";
+			productName = ImageCleaner;
+			productReference = D7A020D71AFB460DABE08F3F /* ImageCleaner.app */;
+			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
 
@@ -173,16 +173,16 @@
 				LastSwiftUpdateCheck = 2640;
 				LastUpgradeCheck = 2640;
 				TargetAttributes = {
-					F211FE69A6A04C09B15E11D2 = {
+					9C2C7F0711B94513B557A602 = {
 						CreatedOnToolsVersion = 26.4;
+						TestTargetID = F211FE69A6A04C09B15E11D2;
 					};
 					AD8EA25A10444728A1696B4F = {
 						CreatedOnToolsVersion = 26.4;
 						TestTargetID = F211FE69A6A04C09B15E11D2;
 					};
-					9C2C7F0711B94513B557A602 = {
+					F211FE69A6A04C09B15E11D2 = {
 						CreatedOnToolsVersion = 26.4;
-						TestTargetID = F211FE69A6A04C09B15E11D2;
 					};
 				};
 			};
@@ -208,6 +208,13 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		57E11E5B90C0444695EDEF47 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		970518F57E8D411D96521B0A /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -216,13 +223,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 		9FC0DEE2C36D47FEB6ED36A3 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-		57E11E5B90C0444695EDEF47 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
@@ -400,6 +400,7 @@
 				DEVELOPMENT_TEAM = LA8LH7KG3A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -432,6 +433,7 @@
 				DEVELOPMENT_TEAM = LA8LH7KG3A;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -541,20 +543,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		D9090286CAF844C59AEF7D28 /* Build configuration list for PBXProject "ImageCleaner" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				AA0000010000000000000001 /* Debug */,
-				AA0000010000000000000002 /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		084CD80A818243E69E593D5A /* Build configuration list for PBXNativeTarget "ImageCleaner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				AA0000010000000000000003 /* Debug */,
 				AA0000010000000000000004 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		2D2CBC43A39C4EA0A09D885F /* Build configuration list for PBXNativeTarget "ImageCleanerUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				AA0000010000000000000007 /* Debug */,
+				AA0000010000000000000008 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -568,11 +570,11 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
 		};
-		2D2CBC43A39C4EA0A09D885F /* Build configuration list for PBXNativeTarget "ImageCleanerUITests" */ = {
+		D9090286CAF844C59AEF7D28 /* Build configuration list for PBXProject "ImageCleaner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
-				AA0000010000000000000007 /* Debug */,
-				AA0000010000000000000008 /* Release */,
+				AA0000010000000000000001 /* Debug */,
+				AA0000010000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -1,0 +1,88 @@
+import SwiftUI
+
+struct ScanView: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @State private var viewModel = ScanViewModel()
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Logo
+            AppIconView(
+                foreground: colorScheme == .dark ? .white : .black,
+                invertedForeground: colorScheme == .dark ? .black : .white
+            )
+            .frame(width: 120, height: 120)
+            .padding(.top, 24)
+
+            Spacer().frame(height: 24)
+
+            // Title + photo count
+            Text("SCANNING")
+                .font(.custom("Jost-Black", size: 40, relativeTo: .largeTitle))
+                .tracking(1)
+
+            Text("\(viewModel.totalPhotos.formatted()) Photos")
+                .font(AppFont.body)
+                .padding(.top, 2)
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color(.systemGray4))
+                        .frame(height: 8)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(colorScheme == .dark ? .white : .black)
+                        .frame(width: geo.size.width * viewModel.progress, height: 8)
+                        .animation(.linear(duration: 0.1), value: viewModel.progress)
+                }
+            }
+            .frame(height: 8)
+            .padding(.top, 12)
+
+            // Scanned count
+            HStack(spacing: 6) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 14))
+                Text("\(viewModel.scannedCount.formatted()) Scanned")
+                    .font(AppFont.body)
+            }
+            .padding(.top, 12)
+
+            // Result rows
+            VStack(spacing: 0) {
+                ScanResultRow(text: viewModel.duplicatesText)
+                ScanResultRow(text: viewModel.screenshotsText)
+                ScanResultRow(text: viewModel.blankPhotosText)
+            }
+            .padding(.top, 24)
+
+            Spacer()
+        }
+        .padding(.horizontal, 24)
+        .navigationBarBackButtonHidden(viewModel.isScanning)
+        .task {
+            viewModel.startMockScan()
+        }
+    }
+}
+
+struct ScanResultRow: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(AppFont.body)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 14)
+            .background(Color(.systemGray5))
+    }
+}
+
+#Preview {
+    NavigationStack {
+        ScanView()
+    }
+}

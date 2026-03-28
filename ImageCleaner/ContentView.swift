@@ -14,17 +14,21 @@ struct ContentView: View {
                 )
                 .frame(width: 100, height: 100)
                 .padding(.top, 40)
+                .padding(.horizontal, 24)
 
                 Spacer()
 
-                VStack(alignment: .leading, spacing: 12) {
+                // SCAN + sub-elements aligned together
+                VStack(alignment: .leading, spacing: 8) {
                     Button {
                         viewModel.navigateToScan()
                     } label: {
                         Text("SCAN")
-                            .font(AppFont.largeTitle)
-                            .tracking(2)
+                            .font(.custom("Jost-Black", size: 120, relativeTo: .largeTitle))
+                            .tracking(-4)
                             .foregroundStyle(colorScheme == .dark ? .white : .black)
+                            .fixedSize(horizontal: true, vertical: false)
+                            .padding(.bottom, -40)
                     }
                     .accessibilityLabel("Start scan")
 
@@ -43,11 +47,12 @@ struct ContentView: View {
                     }
                     .toggleStyle(CheckboxToggleStyle())
                 }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, -12)
 
                 Spacer()
                 Spacer()
             }
-            .padding(.horizontal, 24)
             .frame(maxWidth: .infinity, alignment: .leading)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
