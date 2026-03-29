@@ -8,7 +8,7 @@ struct CheckboxToggleStyle: ToggleStyle {
             HStack(spacing: 8) {
                 ZStack {
                     RoundedRectangle(cornerRadius: 3, style: .continuous)
-                        .stroke(.primary, lineWidth: 1.5)
+                        .strokeBorder(.primary, lineWidth: 1.5)
                         .frame(width: 18, height: 18)
 
                     if configuration.isOn {
