@@ -7,7 +7,7 @@ struct ImageCleanerApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            SplashView()
                 .environment(appTheme)
         }
         .modelContainer(for: [CleaningSession.self])

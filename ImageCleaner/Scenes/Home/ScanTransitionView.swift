@@ -25,14 +25,8 @@ struct ScanTransitionView: View {
             Spacer()
                 .frame(maxHeight: isScanning ? 24 : .infinity)
 
-            // Morphing text — single view, no if/else branching
+            // Morphing text + home buttons grouped together
             morphingText
-
-            // Home buttons — fade out
-            homeButtons
-                .frame(height: isScanning ? 0 : nil)
-                .opacity(transition.homeContentOpacity)
-                .clipped()
 
             // Scan content — fades in
             scanContent
@@ -73,34 +67,42 @@ struct ScanTransitionView: View {
         let clipWidth = scanWidth + (scanningWidth - scanWidth) * transition.textRevealProgress
         let scale = transition.textScale
 
-        return Button {
-            guard !isScanning else { return }
-            if reduceMotion { transition.jumpToScanState() }
-            else { transition.animateToScan() }
-            scanVM.startMockScan()
-        } label: {
-            Text("SCANNING")
-                .font(.custom("Jost-Black", size: 120, relativeTo: .largeTitle))
-                .tracking(-4)
-                .foregroundStyle(foreground)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(width: clipWidth, alignment: .leading)
+        return VStack(alignment: .leading, spacing: 0) {
+            Button {
+                guard !isScanning else { return }
+                if reduceMotion { transition.jumpToScanState() }
+                else { transition.animateToScan() }
+                scanVM.startMockScan()
+            } label: {
+                Text("SCANNING")
+                    .font(.custom("Jost-Black", size: 120, relativeTo: .largeTitle))
+                    .tracking(-4)
+                    .foregroundStyle(foreground)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(width: clipWidth, alignment: .leading)
+                    .clipped()
+                    .scaleEffect(scale, anchor: .topLeading)
+                    .frame(width: clipWidth * scale, height: 120 * scale, alignment: .topLeading)
+            }
+            .disabled(isScanning)
+            .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
+
+            // Home buttons — same VStack so leading edges align with text
+            homeButtons
+                .padding(.top, 16)
+                .frame(height: isScanning ? 0 : nil)
+                .opacity(transition.homeContentOpacity)
                 .clipped()
-                .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: clipWidth * scale, height: 120 * scale, alignment: .topLeading)
         }
-        .disabled(isScanning)
-        .padding(.bottom, isScanning ? 0 : -20)
         .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
         .padding(.leading, isScanning ? 24 : 0)
         .padding(.trailing, isScanning ? 0 : -12)
-        .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
     }
 
     // MARK: - Home Buttons
 
     private var homeButtons: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 4) {
             Button {
                 homeVM.navigateToResults()
             } label: {
@@ -116,8 +118,6 @@ struct ScanTransitionView: View {
             }
             .toggleStyle(CheckboxToggleStyle())
         }
-        .frame(maxWidth: .infinity, alignment: .trailing)
-        .padding(.trailing, -12)
     }
 
     // MARK: - Scan Content
