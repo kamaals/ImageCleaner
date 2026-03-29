@@ -45,18 +45,20 @@ final class ScanTransitionViewModel {
     }
 
     func animateToHome() {
-        withAnimation(.easeOut(duration: 0.2)) {
-            scanContentOpacity = 0
+        // Same structure as animateToScan, reversed values
+
+        withAnimation(.easeInOut(duration: 0.35)) {
+            textRevealProgress = 0
+            homeContentOpacity = 1.0
         }
 
-        withAnimation(.spring(response: 0.4, dampingFraction: 0.85).delay(0.15)) {
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.85).delay(0.2)) {
             textScale = 1.0
             isScanning = false
         }
 
-        withAnimation(.easeInOut(duration: 0.3).delay(0.35)) {
-            textRevealProgress = 0
-            homeContentOpacity = 1.0
+        withAnimation(.easeIn(duration: 0.3).delay(0.5)) {
+            scanContentOpacity = 0
         }
     }
 }
