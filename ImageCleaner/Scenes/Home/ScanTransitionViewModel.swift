@@ -3,6 +3,7 @@ import SwiftUI
 @Observable @MainActor
 final class ScanTransitionViewModel {
     var isScanning = false
+    var contentEntered = false
 
     var textRevealProgress: Double = 0
     var textScale: Double = 1.0
@@ -14,6 +15,7 @@ final class ScanTransitionViewModel {
 
     func jumpToScanState() {
         isScanning = true
+        contentEntered = true
         textRevealProgress = 1.0
         textScale = Self.targetScale
         homeContentOpacity = 0
@@ -22,10 +24,19 @@ final class ScanTransitionViewModel {
 
     func jumpToHomeState() {
         isScanning = false
+        contentEntered = true
         textRevealProgress = 0
         textScale = 1.0
         homeContentOpacity = 1.0
         scanContentOpacity = 0
+    }
+
+    func animateEntrance() {
+        contentEntered = true
+    }
+
+    func jumpToEnteredState() {
+        contentEntered = true
     }
 
     func animateToScan() {

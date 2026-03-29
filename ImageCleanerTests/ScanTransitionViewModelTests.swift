@@ -2,37 +2,53 @@ import Testing
 @testable import ImageCleaner
 
 struct ScanTransitionViewModelTests {
-    @Test func initialStateIsHome() {
+    @Test @MainActor func initialStateIsHome() {
         let vm = ScanTransitionViewModel()
         #expect(vm.isScanning == false)
+        #expect(vm.contentEntered == false)
         #expect(vm.textRevealProgress == 0)
         #expect(vm.textScale == 1.0)
         #expect(vm.homeContentOpacity == 1.0)
         #expect(vm.scanContentOpacity == 0)
     }
 
-    @Test func scanningEndState() {
+    @Test @MainActor func scanningEndState() {
         let vm = ScanTransitionViewModel()
         vm.jumpToScanState()
         #expect(vm.isScanning == true)
+        #expect(vm.contentEntered == true)
         #expect(vm.textRevealProgress == 1.0)
         #expect(vm.textScale == ScanTransitionViewModel.targetScale)
         #expect(vm.homeContentOpacity == 0)
         #expect(vm.scanContentOpacity == 1.0)
     }
 
-    @Test func homeEndState() {
+    @Test @MainActor func homeEndState() {
         let vm = ScanTransitionViewModel()
         vm.jumpToScanState()
         vm.jumpToHomeState()
         #expect(vm.isScanning == false)
+        #expect(vm.contentEntered == true)
         #expect(vm.textRevealProgress == 0)
         #expect(vm.textScale == 1.0)
         #expect(vm.homeContentOpacity == 1.0)
         #expect(vm.scanContentOpacity == 0)
     }
 
-    @Test func targetScaleIs40Over120() {
+    @Test @MainActor func targetScaleIs40Over120() {
         #expect(ScanTransitionViewModel.targetScale == 40.0 / 120.0)
+    }
+
+    @Test @MainActor func entranceState() {
+        let vm = ScanTransitionViewModel()
+        #expect(vm.contentEntered == false)
+        vm.animateEntrance()
+        #expect(vm.contentEntered == true)
+    }
+
+    @Test @MainActor func jumpToEnteredState() {
+        let vm = ScanTransitionViewModel()
+        vm.jumpToEnteredState()
+        #expect(vm.contentEntered == true)
     }
 }

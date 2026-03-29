@@ -11,6 +11,7 @@ import SwiftUI
 struct AppIconView: View {
     var foreground: Color = .black
     var invertedForeground: Color = .white
+    var skipDrawAnimation = false
 
     @State private var backTrim: CGFloat = 0
     @State private var backFillOpacity: Double = 0
@@ -38,7 +39,15 @@ struct AppIconView: View {
         .task {
             guard !hasAppeared else { return }
             hasAppeared = true
-            startAnimation()
+            if skipDrawAnimation {
+                backTrim = 1.0
+                backFillOpacity = 1.0
+                frontBlackTrim = 1.0
+                frontWhiteTrim = 1.0
+                offsetProgress = 1.0
+            } else {
+                startAnimation()
+            }
         }
     }
 

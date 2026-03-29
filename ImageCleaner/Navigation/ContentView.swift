@@ -3,10 +3,11 @@ import SwiftUI
 struct ContentView: View {
     @Environment(AppTheme.self) private var theme
     @State private var viewModel = HomeViewModel()
+    var heroNamespace: Namespace.ID?
 
     var body: some View {
         NavigationStack(path: $viewModel.navigationPath) {
-            ScanTransitionView(homeVM: viewModel)
+            ScanTransitionView(homeVM: viewModel, heroNamespace: heroNamespace)
                 .toolbar {
                     ToolbarItem(placement: .topBarTrailing) {
                         NavigationLink(value: HomeDestination.settings) {

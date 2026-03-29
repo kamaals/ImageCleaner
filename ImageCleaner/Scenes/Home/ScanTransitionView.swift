@@ -6,17 +6,26 @@ struct ScanTransitionView: View {
     @State private var transition = ScanTransitionViewModel()
     @State private var scanVM = ScanViewModel()
     @Bindable var homeVM: HomeViewModel
+    var heroNamespace: Namespace.ID?
+    @Namespace private var localNamespace
 
     private var isScanning: Bool { transition.isScanning }
+    private var contentEntered: Bool { transition.contentEntered }
+
+    private var iconNamespace: Namespace.ID {
+        heroNamespace ?? localNamespace
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // Shared AppIconView — transaction strips all animation (explicit + implicit)
+            // AppIcon — hero target from splash, skips draw animation
             AppIconView(
                 foreground: foreground,
-                invertedForeground: background
+                invertedForeground: background,
+                skipDrawAnimation: heroNamespace != nil
             )
             .frame(width: 100, height: 100)
+            .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
             .padding(.top, 40)
             .padding(.horizontal, 24)
             .animation(nil, value: isScanning)
@@ -40,6 +49,7 @@ struct ScanTransitionView: View {
                 .frame(maxHeight: isScanning ? 0 : .infinity)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        .geometryGroup()
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: isScanning)
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
@@ -56,6 +66,12 @@ struct ScanTransitionView: View {
                 .accessibilityLabel("Go back")
                 .accessibilityHidden(!isScanning)
             }
+        }
+        .task {
+            guard !contentEntered else { return }
+            try? await Task.sleep(for: .milliseconds(600))
+            if reduceMotion { transition.jumpToEnteredState() }
+            else { transition.animateEntrance() }
         }
     }
 
@@ -86,6 +102,8 @@ struct ScanTransitionView: View {
             }
             .disabled(isScanning)
             .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
+            .offset(x: contentEntered || isScanning ? 0 : 400)
+            .animation(.spring(response: 0.5, dampingFraction: 0.85), value: contentEntered)
 
             // Home buttons — same VStack so leading edges align with text
             homeButtons
@@ -111,12 +129,16 @@ struct ScanTransitionView: View {
                     .foregroundStyle(.secondary)
             }
             .accessibilityLabel("View last scan results")
+            .offset(x: contentEntered || isScanning ? 0 : 300)
+            .animation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1), value: contentEntered)
 
             Toggle(isOn: $homeVM.forceRescan) {
                 Text("Force Re-Scan")
                     .font(AppFont.subheadline)
             }
             .toggleStyle(CheckboxToggleStyle())
+            .offset(x: contentEntered || isScanning ? 0 : 300)
+            .animation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.2), value: contentEntered)
         }
     }
 
