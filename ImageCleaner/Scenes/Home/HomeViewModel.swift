@@ -1,6 +1,6 @@
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class HomeViewModel {
     var forceRescan = false
     var navigationPath = NavigationPath()

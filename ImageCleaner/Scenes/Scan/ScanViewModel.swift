@@ -1,6 +1,6 @@
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class ScanViewModel {
     var totalPhotos = 0
     var scannedCount = 0

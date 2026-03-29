@@ -7,12 +7,12 @@ struct CheckboxToggleStyle: ToggleStyle {
         } label: {
             HStack(spacing: 8) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: 3)
+                    RoundedRectangle(cornerRadius: 3, style: .continuous)
                         .stroke(.primary, lineWidth: 1.5)
                         .frame(width: 18, height: 18)
 
                     if configuration.isOn {
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: 2, style: .continuous)
                             .fill(.primary)
                             .frame(width: 10, height: 10)
                     }

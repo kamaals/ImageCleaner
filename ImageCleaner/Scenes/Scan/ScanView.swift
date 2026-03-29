@@ -29,7 +29,7 @@ struct ScanView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray4))
+                        .fill(.secondary.opacity(0.2))
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)
@@ -65,19 +65,6 @@ struct ScanView: View {
         .task {
             viewModel.startMockScan()
         }
-    }
-}
-
-struct ScanResultRow: View {
-    let text: String
-
-    var body: some View {
-        Text(text)
-            .font(AppFont.body)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-            .background(Color(.systemGray5))
     }
 }
 

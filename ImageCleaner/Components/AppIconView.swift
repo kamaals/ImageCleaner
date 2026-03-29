@@ -24,18 +24,18 @@ struct AppIconView: View {
     private static let designSize: CGFloat = 200
 
     var body: some View {
-        GeometryReader { geo in
-            let size = min(geo.size.width, geo.size.height)
+        Button(action: replayAnimation) {
+            GeometryReader { geo in
+                let size = min(geo.size.width, geo.size.height)
 
-            iconLayers(for: size)
-                .position(x: geo.size.width / 2, y: geo.size.height / 2)
+                iconLayers(for: size)
+                    .position(x: geo.size.width / 2, y: geo.size.height / 2)
+            }
+            .aspectRatio(1, contentMode: .fit)
         }
-        .aspectRatio(1, contentMode: .fit)
-        .contentShape(Rectangle())
-        .onTapGesture(perform: replayAnimation)
-        .accessibilityAddTraits(.isButton)
+        .buttonStyle(.plain)
         .accessibilityLabel("App icon")
-        .onAppear {
+        .task {
             guard !hasAppeared else { return }
             hasAppeared = true
             startAnimation()
@@ -99,22 +99,22 @@ struct AppIconView: View {
 
         withAnimation(.easeInOut(duration: 1.0)) {
             backTrim = 1.0
-        }
-
-        withAnimation(.easeIn(duration: 0.5).delay(1.0)) {
-            backFillOpacity = 1.0
+        } completion: {
+            withAnimation(.easeIn(duration: 0.5)) {
+                backFillOpacity = 1.0
+            }
         }
 
         withAnimation(.easeInOut(duration: 0.8).delay(1.2)) {
             frontBlackTrim = 1.0
-        }
-
-        withAnimation(.easeInOut(duration: 0.6).delay(2.0)) {
-            frontWhiteTrim = 1.0
-        }
-
-        withAnimation(.spring(response: 0.5, dampingFraction: 0.75).delay(2.8)) {
-            offsetProgress = 1.0
+        } completion: {
+            withAnimation(.easeInOut(duration: 0.6)) {
+                frontWhiteTrim = 1.0
+            } completion: {
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.75)) {
+                    offsetProgress = 1.0
+                }
+            }
         }
     }
 
@@ -125,7 +125,8 @@ struct AppIconView: View {
         frontWhiteTrim = 0
         offsetProgress = 0
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
+        Task {
+            try? await Task.sleep(for: .milliseconds(150))
             startAnimation()
         }
     }

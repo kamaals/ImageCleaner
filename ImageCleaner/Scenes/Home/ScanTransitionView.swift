@@ -19,7 +19,7 @@ struct ScanTransitionView: View {
             .frame(width: 100, height: 100)
             .padding(.top, 40)
             .padding(.horizontal, 24)
-            .transaction { $0.animation = nil }
+            .animation(nil, value: isScanning)
 
             // Animated spacer — large in home, small in scan
             Spacer()
@@ -131,7 +131,7 @@ struct ScanTransitionView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(Color(.systemGray4))
+                        .fill(.secondary.opacity(0.2))
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)

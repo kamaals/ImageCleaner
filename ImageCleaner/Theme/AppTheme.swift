@@ -1,6 +1,6 @@
 import SwiftUI
 
-@Observable
+@Observable @MainActor
 final class AppTheme {
     var appearanceMode: AppearanceMode = .system
 
