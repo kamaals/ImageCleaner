@@ -39,6 +39,7 @@ struct SplashView: View {
         }
     }
     
+    
     private var foregroundColor: Color {
         colorScheme == .dark ? .white : .black
     }

@@ -34,8 +34,16 @@ struct ScanTransitionView: View {
             Spacer()
                 .frame(maxHeight: isScanning ? 24 : .infinity)
 
-            // Morphing text + home buttons grouped together
+            // Morphing text (SCAN / SCANNING)
             morphingText
+
+            // Home buttons — independent of morphingText so they slide out freely
+            homeButtons
+                .padding(.top, 16)
+                .frame(width: measureText("SCAN"), alignment: .leading)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .padding(.trailing, -12)
+                .frame(height: isScanning ? 0 : nil)
 
             // Scan content — fades in
             scanContent
@@ -83,35 +91,25 @@ struct ScanTransitionView: View {
         let clipWidth = scanWidth + (scanningWidth - scanWidth) * transition.textRevealProgress
         let scale = transition.textScale
 
-        return VStack(alignment: .leading, spacing: 0) {
-            Button {
-                guard !isScanning else { return }
-                if reduceMotion { transition.jumpToScanState() }
-                else { transition.animateToScan() }
-                scanVM.startMockScan()
-            } label: {
-                Text("SCANNING")
-                    .font(.custom("Jost-Black", size: 120, relativeTo: .largeTitle))
-                    .tracking(-4)
-                    .foregroundStyle(foreground)
-                    .fixedSize(horizontal: true, vertical: false)
-                    .frame(width: clipWidth, alignment: .leading)
-                    .clipped()
-                    .scaleEffect(scale, anchor: .topLeading)
-                    .frame(width: clipWidth * scale, height: 120 * scale, alignment: .topLeading)
-            }
-            .disabled(isScanning)
-            .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
-            .offset(x: contentEntered || isScanning ? 0 : 400)
-            .animation(.spring(response: 0.5, dampingFraction: 0.85), value: contentEntered)
-
-            // Home buttons — same VStack so leading edges align with text
-            homeButtons
-                .padding(.top, 16)
-                .frame(height: isScanning ? 0 : nil)
-                .opacity(transition.homeContentOpacity)
+        return Button {
+            guard !isScanning else { return }
+            if reduceMotion { transition.jumpToScanState() }
+            else { transition.animateToScan() }
+            scanVM.startMockScan()
+        } label: {
+            Text("SCANNING")
+                .font(.custom("Jost-Black", size: 120, relativeTo: .largeTitle))
+                .tracking(-4)
+                .foregroundStyle(foreground)
+                .fixedSize(horizontal: true, vertical: false)
+                .frame(width: clipWidth, alignment: .leading)
                 .clipped()
+                .scaleEffect(scale, anchor: .topLeading)
+                .frame(width: clipWidth * scale, height: 120 * scale, alignment: .topLeading)
         }
+        .disabled(isScanning)
+        .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
+        .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
         .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
         .padding(.leading, isScanning ? 24 : 0)
         .padding(.trailing, isScanning ? 0 : -12)
@@ -129,16 +127,14 @@ struct ScanTransitionView: View {
                     .foregroundStyle(.secondary)
             }
             .accessibilityLabel("View last scan results")
-            .offset(x: contentEntered || isScanning ? 0 : 300)
-            .animation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1), value: contentEntered)
+            .offset(x: transition.viewResultsVisible ? 0 : offScreenOffset)
 
             Toggle(isOn: $homeVM.forceRescan) {
                 Text("Force Re-Scan")
                     .font(AppFont.subheadline)
             }
             .toggleStyle(CheckboxToggleStyle())
-            .offset(x: contentEntered || isScanning ? 0 : 300)
-            .animation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.2), value: contentEntered)
+            .offset(x: transition.forceRescanVisible ? 0 : offScreenOffset)
         }
     }
 
@@ -183,6 +179,12 @@ struct ScanTransitionView: View {
     }
 
     // MARK: - Helpers
+
+    /// Offset to push trailing-aligned content just past the right viewport edge.
+    /// Based on measured text width (the widest content), not hardcoded pixels.
+    private var offScreenOffset: CGFloat {
+        measureText("SCANNING") + 50
+    }
 
     private var foreground: Color { colorScheme == .dark ? .white : .black }
     private var background: Color { colorScheme == .dark ? .black : .white }
