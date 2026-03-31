@@ -28,6 +28,8 @@ struct ScanTransitionView: View {
             .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
             .padding(.top, 40)
             .padding(.horizontal, 24)
+            .opacity(transition.appIconVisible ? 1 : 0)
+            .scaleEffect(transition.appIconVisible ? 1 : 0.6)
             .animation(nil, value: isScanning)
 
             // Animated spacer — large in home, small in scan
@@ -80,6 +82,20 @@ struct ScanTransitionView: View {
             if reduceMotion { transition.jumpToEnteredState() }
             else { transition.animateEntrance() }
         }
+        .onChange(of: scanVM.scanCompleted) { _, completed in
+            guard completed else { return }
+            Task { @MainActor in
+                try? await Task.sleep(for: .seconds(1))
+                if reduceMotion {
+                    transition.jumpToHomeState()
+                    homeVM.navigateToResults()
+                } else {
+                    transition.animateToResults {
+                        homeVM.navigateToResults()
+                    }
+                }
+            }
+        }
     }
 
     // MARK: - Morphing Text
@@ -108,6 +124,7 @@ struct ScanTransitionView: View {
         }
         .disabled(isScanning)
         .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
+        .opacity(transition.scanningTextVisible ? 1 : 0)
         .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
         .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
         .padding(.leading, isScanning ? 24 : 0)

@@ -20,6 +20,10 @@ final class ScanTransitionViewModel {
     var screenshotsRowVisible = false
     var blankPhotosRowVisible = false
 
+    // AppIcon + SCANNING text visibility (for exit-to-results)
+    var appIconVisible = true
+    var scanningTextVisible = true
+
     static let targetScale = 40.0 / 120.0
 
     // MARK: - Reduce Motion (instant jumps)
@@ -31,6 +35,8 @@ final class ScanTransitionViewModel {
         textScale = Self.targetScale
         viewResultsVisible = false
         forceRescanVisible = false
+        appIconVisible = true
+        scanningTextVisible = true
         showAllScanElements()
     }
 
@@ -41,6 +47,8 @@ final class ScanTransitionViewModel {
         textScale = 1.0
         viewResultsVisible = true
         forceRescanVisible = true
+        appIconVisible = true
+        scanningTextVisible = true
         hideAllScanElements()
     }
 
@@ -88,20 +96,37 @@ final class ScanTransitionViewModel {
 
     /// Reverse: scan elements exit → text morph back → buttons re-enter
     func animateToHome() {
-        // Step 1: Exit scan elements in reverse stagger (last in → first out)
         staggerScanElementsOut {
-            // Step 2: All scan elements gone → morph text back
             withAnimation(.easeInOut(duration: 0.35)) {
                 self.textRevealProgress = 0
                 self.textScale = 1.0
                 self.isScanning = false
             } completion: {
-                // Step 3: Buttons slide back in (stagger)
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
                     self.viewResultsVisible = true
                 }
                 withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1)) {
                     self.forceRescanVisible = true
+                }
+            }
+        }
+    }
+
+    /// Exit to results: scan elements out → SCANNING fades → AppIcon fades → navigate
+    func animateToResults(completion navigate: @MainActor @escaping @Sendable () -> Void) {
+        // Step 1: Reverse stagger scan elements out
+        staggerScanElementsOut {
+            // Step 2: Fade out SCANNING text
+            withAnimation(.easeInOut(duration: 0.3)) {
+                self.scanningTextVisible = false
+            } completion: {
+                // Step 3: Fade out AppIcon
+                withAnimation(.easeOut(duration: 0.3)) {
+                    self.appIconVisible = false
+                } completion: {
+                    // Step 4: Reset state for return, then navigate
+                    self.jumpToHomeState()
+                    navigate()
                 }
             }
         }
@@ -137,7 +162,6 @@ final class ScanTransitionViewModel {
         let anim = Animation.easeIn(duration: 0.2)
         let interval = 0.06
 
-        // Reverse order: last entered exits first
         withAnimation(anim) {
             blankPhotosRowVisible = false
         }
@@ -153,7 +177,6 @@ final class ScanTransitionViewModel {
         withAnimation(anim.delay(interval * 4)) {
             progressBarVisible = false
         }
-        // Completion on last element to exit — chains into next step
         withAnimation(anim.delay(interval * 5)) {
             photosTextVisible = false
         } completion: {
