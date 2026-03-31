@@ -45,10 +45,9 @@ struct ScanTransitionView: View {
                 .padding(.trailing, -12)
                 .frame(height: isScanning ? 0 : nil)
 
-            // Scan content — fades in
+            // Scan content — elements stagger in after SCANNING positions
             scanContent
                 .frame(height: isScanning ? nil : 0)
-                .opacity(transition.scanContentOpacity)
                 .clipped()
                 .padding(.horizontal, 24)
 
@@ -142,10 +141,14 @@ struct ScanTransitionView: View {
 
     private var scanContent: some View {
         VStack(alignment: .leading, spacing: 0) {
+            // 1. Photos count
             Text("\(scanVM.totalPhotos.formatted()) Photos")
                 .font(AppFont.body)
                 .padding(.top, 2)
+                .opacity(transition.photosTextVisible ? 1 : 0)
+                .offset(y: transition.photosTextVisible ? 0 : 12)
 
+            // 2. Progress bar
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
@@ -160,7 +163,10 @@ struct ScanTransitionView: View {
             }
             .frame(height: 8)
             .padding(.top, 12)
+            .opacity(transition.progressBarVisible ? 1 : 0)
+            .offset(y: transition.progressBarVisible ? 0 : 12)
 
+            // 3. Scanned count
             HStack(spacing: 6) {
                 Image(systemName: "pencil")
                     .font(.system(size: 14))
@@ -168,11 +174,22 @@ struct ScanTransitionView: View {
                     .font(AppFont.body)
             }
             .padding(.top, 12)
+            .opacity(transition.scannedTextVisible ? 1 : 0)
+            .offset(y: transition.scannedTextVisible ? 0 : 12)
 
+            // 4-6. Report rows (stagger individually)
             VStack(spacing: 0) {
                 ScanResultRow(text: scanVM.duplicatesText)
+                    .opacity(transition.duplicatesRowVisible ? 1 : 0)
+                    .offset(y: transition.duplicatesRowVisible ? 0 : 12)
+
                 ScanResultRow(text: scanVM.screenshotsText)
+                    .opacity(transition.screenshotsRowVisible ? 1 : 0)
+                    .offset(y: transition.screenshotsRowVisible ? 0 : 12)
+
                 ScanResultRow(text: scanVM.blankPhotosText)
+                    .opacity(transition.blankPhotosRowVisible ? 1 : 0)
+                    .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
             }
             .padding(.top, 24)
         }

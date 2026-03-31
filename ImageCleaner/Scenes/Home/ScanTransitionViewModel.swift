@@ -8,9 +8,17 @@ final class ScanTransitionViewModel {
     var textRevealProgress: Double = 0
     var textScale: Double = 1.0
 
-    var scanContentOpacity: Double = 0
+    // Home button visibility (per-button stagger)
     var viewResultsVisible = false
     var forceRescanVisible = false
+
+    // Scan content element visibility (per-element stagger)
+    var photosTextVisible = false
+    var progressBarVisible = false
+    var scannedTextVisible = false
+    var duplicatesRowVisible = false
+    var screenshotsRowVisible = false
+    var blankPhotosRowVisible = false
 
     static let targetScale = 40.0 / 120.0
 
@@ -21,9 +29,9 @@ final class ScanTransitionViewModel {
         contentEntered = true
         textRevealProgress = 1.0
         textScale = Self.targetScale
-        scanContentOpacity = 1.0
         viewResultsVisible = false
         forceRescanVisible = false
+        showAllScanElements()
     }
 
     func jumpToHomeState() {
@@ -31,9 +39,9 @@ final class ScanTransitionViewModel {
         contentEntered = true
         textRevealProgress = 0
         textScale = 1.0
-        scanContentOpacity = 0
         viewResultsVisible = true
         forceRescanVisible = true
+        hideAllScanElements()
     }
 
     func jumpToEnteredState() {
@@ -49,7 +57,6 @@ final class ScanTransitionViewModel {
         withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
             contentEntered = true
         }
-        // Stagger buttons in after text starts entering
         withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1)) {
             viewResultsVisible = true
         }
@@ -58,13 +65,12 @@ final class ScanTransitionViewModel {
         }
     }
 
-    /// Forward: buttons exit (reverse stagger) → text morphs → scan content appears
+    /// Forward: buttons exit → text morphs → scan elements stagger in
     func animateToScan() {
         // Step 1: Exit buttons in reverse stagger (last in → first out)
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85)) {
             forceRescanVisible = false
         }
-        // View Last Results exits second; its completion fires after both are gone
         withAnimation(.spring(response: 0.6, dampingFraction: 0.85).delay(0.2)) {
             viewResultsVisible = false
         } completion: {
@@ -74,32 +80,102 @@ final class ScanTransitionViewModel {
                 self.textScale = Self.targetScale
                 self.isScanning = true
             } completion: {
-                // Step 3: Show scan content
-                withAnimation(.easeIn(duration: 0.3)) {
-                    self.scanContentOpacity = 1.0
+                // Step 3: Stagger scan content elements in
+                self.staggerScanElementsIn()
+            }
+        }
+    }
+
+    /// Reverse: scan elements exit → text morph back → buttons re-enter
+    func animateToHome() {
+        // Step 1: Exit scan elements in reverse stagger (last in → first out)
+        staggerScanElementsOut {
+            // Step 2: All scan elements gone → morph text back
+            withAnimation(.easeInOut(duration: 0.35)) {
+                self.textRevealProgress = 0
+                self.textScale = 1.0
+                self.isScanning = false
+            } completion: {
+                // Step 3: Buttons slide back in (stagger)
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
+                    self.viewResultsVisible = true
+                }
+                withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1)) {
+                    self.forceRescanVisible = true
                 }
             }
         }
     }
 
-    /// Reverse: scan content + text morph back → buttons re-enter (stagger)
-    func animateToHome() {
-        // Step 1: Fade scan content + morph SCANNING → SCAN
-        withAnimation(.easeInOut(duration: 0.3)) {
-            scanContentOpacity = 0
+    // MARK: - Scan Element Stagger Helpers
+
+    private func staggerScanElementsIn() {
+        let spring = Animation.easeOut(duration: 0.3)
+        let interval = 0.08
+
+        withAnimation(spring) {
+            photosTextVisible = true
         }
-        withAnimation(.easeInOut(duration: 0.35)) {
-            textRevealProgress = 0
-            textScale = 1.0
-            isScanning = false
+        withAnimation(spring.delay(interval)) {
+            progressBarVisible = true
+        }
+        withAnimation(spring.delay(interval * 2)) {
+            scannedTextVisible = true
+        }
+        withAnimation(spring.delay(interval * 3)) {
+            duplicatesRowVisible = true
+        }
+        withAnimation(spring.delay(interval * 4)) {
+            screenshotsRowVisible = true
+        }
+        withAnimation(spring.delay(interval * 5)) {
+            blankPhotosRowVisible = true
+        }
+    }
+
+    private func staggerScanElementsOut(completion done: @MainActor @escaping @Sendable () -> Void) {
+        let anim = Animation.easeIn(duration: 0.2)
+        let interval = 0.06
+
+        // Reverse order: last entered exits first
+        withAnimation(anim) {
+            blankPhotosRowVisible = false
+        }
+        withAnimation(anim.delay(interval)) {
+            screenshotsRowVisible = false
+        }
+        withAnimation(anim.delay(interval * 2)) {
+            duplicatesRowVisible = false
+        }
+        withAnimation(anim.delay(interval * 3)) {
+            scannedTextVisible = false
+        }
+        withAnimation(anim.delay(interval * 4)) {
+            progressBarVisible = false
+        }
+        // Completion on last element to exit — chains into next step
+        withAnimation(anim.delay(interval * 5)) {
+            photosTextVisible = false
         } completion: {
-            // Step 2: Buttons slide back in (stagger)
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.85)) {
-                self.viewResultsVisible = true
-            }
-            withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.1)) {
-                self.forceRescanVisible = true
-            }
+            done()
         }
+    }
+
+    private func showAllScanElements() {
+        photosTextVisible = true
+        progressBarVisible = true
+        scannedTextVisible = true
+        duplicatesRowVisible = true
+        screenshotsRowVisible = true
+        blankPhotosRowVisible = true
+    }
+
+    private func hideAllScanElements() {
+        photosTextVisible = false
+        progressBarVisible = false
+        scannedTextVisible = false
+        duplicatesRowVisible = false
+        screenshotsRowVisible = false
+        blankPhotosRowVisible = false
     }
 }
