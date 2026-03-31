@@ -52,9 +52,9 @@ struct ScanView: View {
 
             // Result rows
             VStack(spacing: 0) {
-                ScanResultRow(text: viewModel.duplicatesText)
-                ScanResultRow(text: viewModel.screenshotsText)
-                ScanResultRow(text: viewModel.blankPhotosText)
+                ScanResultRow(text: viewModel.duplicatesText, shade: 0.08)
+                ScanResultRow(text: viewModel.screenshotsText, shade: 0.13)
+                ScanResultRow(text: viewModel.blankPhotosText, shade: 0.18)
             }
             .padding(.top, 24)
 

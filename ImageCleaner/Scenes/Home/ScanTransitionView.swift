@@ -179,15 +179,15 @@ struct ScanTransitionView: View {
 
             // 4-6. Report rows (stagger individually)
             VStack(spacing: 0) {
-                ScanResultRow(text: scanVM.duplicatesText)
+                ScanResultRow(text: scanVM.duplicatesText, shade: 0.08)
                     .opacity(transition.duplicatesRowVisible ? 1 : 0)
                     .offset(y: transition.duplicatesRowVisible ? 0 : 12)
 
-                ScanResultRow(text: scanVM.screenshotsText)
+                ScanResultRow(text: scanVM.screenshotsText, shade: 0.13)
                     .opacity(transition.screenshotsRowVisible ? 1 : 0)
                     .offset(y: transition.screenshotsRowVisible ? 0 : 12)
 
-                ScanResultRow(text: scanVM.blankPhotosText)
+                ScanResultRow(text: scanVM.blankPhotosText, shade: 0.18)
                     .opacity(transition.blankPhotosRowVisible ? 1 : 0)
                     .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
             }
