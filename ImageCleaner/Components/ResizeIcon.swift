@@ -37,6 +37,12 @@ struct ResizeIcon: View {
                 startAnimation()
             }
         }
+        .onChange(of: skipAnimation) { oldValue, newValue in
+            // Trigger animation when skipAnimation changes from true to false
+            if oldValue == true && newValue == false && !reduceMotion {
+                startAnimation()
+            }
+        }
     }
 
     // MARK: - Icon Composition

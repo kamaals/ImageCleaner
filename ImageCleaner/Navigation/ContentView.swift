@@ -21,6 +21,12 @@ struct ContentView: View {
                         ScanView()
                     case .results:
                         ResultsView()
+                    case .duplicates:
+                        DuplicatesDetailView()
+                    case .screenshots:
+                        ScreenshotsDetailView()
+                    case .blankPhotos:
+                        BlankPhotosDetailView()
                     case .settings:
                         SettingsView()
                     }
