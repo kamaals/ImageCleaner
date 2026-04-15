@@ -106,7 +106,7 @@ struct ScanTransitionView: View {
 
             // baseFontSize: size at which "SCAN" exactly fills availableWidth.
             let scanWidthAtRef = measureText("SCAN", size: Self.referenceFontSize)
-            let baseFontSize = (availableWidth / scanWidthAtRef) * Self.referenceFontSize
+            let baseFontSize = min((availableWidth / scanWidthAtRef) * Self.referenceFontSize, Self.maxFontSize)
 
             // scan-state small size is fixed at 40pt; derive a dynamic targetScale from baseFontSize.
             let scanStateFontSize: CGFloat = 40
@@ -129,7 +129,7 @@ struct ScanTransitionView: View {
                 scanVM.startMockScan()
             } label: {
                 Text("SCANNING")
-                    .font(.custom("Jost-Black", size: baseFontSize, relativeTo: .largeTitle))
+                    .font(.custom("Jost-Black", size: baseFontSize))
                     .tracking(-4 * (baseFontSize / Self.referenceFontSize))
                     .foregroundStyle(foreground)
                     .fixedSize(horizontal: true, vertical: false)
@@ -150,7 +150,7 @@ struct ScanTransitionView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, sidePadding)
         }
-        .frame(height: Self.referenceFontSize * 1.2)
+        .frame(height: Self.morphingTextContainerHeight)
     }
 
     // MARK: - Home Buttons
@@ -239,6 +239,10 @@ struct ScanTransitionView: View {
     // Reference size we measure against to derive ratios. Any size works mathematically;
     // 120 keeps diffs readable vs the old code.
     private static let referenceFontSize: CGFloat = 120
+
+    // Cap so outer frame height is predictable across iPhone sizes and iPad portrait.
+    private static let maxFontSize: CGFloat = referenceFontSize * 1.35
+    private static let morphingTextContainerHeight: CGFloat = maxFontSize * 1.2
 
     /// Offset to push trailing-aligned content just past the right viewport edge.
     /// Based on measured text width (the widest content), not hardcoded pixels.
