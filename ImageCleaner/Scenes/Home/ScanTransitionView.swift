@@ -213,6 +213,10 @@ struct ScanTransitionView: View {
 
     // MARK: - Helpers
 
+    // Reference size we measure against to derive ratios. Any size works mathematically;
+    // 120 keeps diffs readable vs the old code.
+    private static let referenceFontSize: CGFloat = 120
+
     /// Offset to push trailing-aligned content just past the right viewport edge.
     /// Based on measured text width (the widest content), not hardcoded pixels.
     private var offScreenOffset: CGFloat {
@@ -222,8 +226,13 @@ struct ScanTransitionView: View {
     private var foreground: Color { colorScheme == .dark ? .white : .black }
     private var background: Color { colorScheme == .dark ? .black : .white }
 
-    private func measureText(_ string: String) -> CGFloat {
-        let font = UIFont(name: "Jost-Black", size: 120) ?? .systemFont(ofSize: 120, weight: .black)
-        return (string as NSString).size(withAttributes: [.font: font]).width
+    /// Width of `string` rendered in Jost-Black at `size` pt, with the -4 pt tracking
+    /// applied manually (UIFont does not expose tracking, so we adjust afterward).
+    private func measureText(_ string: String, size: CGFloat = ScanTransitionView.referenceFontSize) -> CGFloat {
+        let font = UIFont(name: "Jost-Black", size: size) ?? .systemFont(ofSize: size, weight: .black)
+        let rawWidth = (string as NSString).size(withAttributes: [.font: font]).width
+        // tracking(-4) in SwiftUI at 120pt removes ~4pt per character gap. Scale linearly with size.
+        let trackingAdjustment = -4 * CGFloat(max(0, string.count - 1)) * (size / ScanTransitionView.referenceFontSize)
+        return rawWidth + trackingAdjustment
     }
 }
