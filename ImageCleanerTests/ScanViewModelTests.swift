@@ -2,7 +2,7 @@ import Testing
 @testable import ImageCleaner
 
 struct ScanViewModelTests {
-    @Test func initialState() {
+    @Test @MainActor func initialState() {
         let vm = ScanViewModel()
         #expect(vm.totalPhotos == 0)
         #expect(vm.scannedCount == 0)
@@ -12,26 +12,26 @@ struct ScanViewModelTests {
         #expect(vm.isScanning == false)
     }
 
-    @Test func progressIsZeroWhenNoPhotos() {
+    @Test @MainActor func progressIsZeroWhenNoPhotos() {
         let vm = ScanViewModel()
         #expect(vm.progress == 0)
     }
 
-    @Test func progressCalculation() {
+    @Test @MainActor func progressCalculation() {
         let vm = ScanViewModel()
         vm.totalPhotos = 100
         vm.scannedCount = 75
         #expect(vm.progress == 0.75)
     }
 
-    @Test func progressCapsAtOne() {
+    @Test @MainActor func progressCapsAtOne() {
         let vm = ScanViewModel()
         vm.totalPhotos = 100
         vm.scannedCount = 150
         #expect(vm.progress == 1.0)
     }
 
-    @Test func duplicatesLabel() {
+    @Test @MainActor func duplicatesLabel() {
         let vm = ScanViewModel()
         vm.duplicatesFound = 0
         #expect(vm.duplicatesText == "No Duplicates Yet")
@@ -39,7 +39,7 @@ struct ScanViewModelTests {
         #expect(vm.duplicatesText == "145 Duplicates found....")
     }
 
-    @Test func screenshotsLabel() {
+    @Test @MainActor func screenshotsLabel() {
         let vm = ScanViewModel()
         vm.screenshotsFound = 0
         #expect(vm.screenshotsText == "No Screenshots Yet")
@@ -47,7 +47,7 @@ struct ScanViewModelTests {
         #expect(vm.screenshotsText == "214 Screenshots found....")
     }
 
-    @Test func blankPhotosLabel() {
+    @Test @MainActor func blankPhotosLabel() {
         let vm = ScanViewModel()
         vm.blankPhotosFound = 0
         #expect(vm.blankPhotosText == "No Blank Photos Yet")
