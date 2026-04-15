@@ -27,7 +27,7 @@ struct ScanTransitionView: View {
             .frame(width: 100, height: 100)
             .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
             .padding(.top, 40)
-            .padding(.horizontal, 24)
+            .padding(.horizontal, Self.horizontalInset)
             .opacity(transition.appIconVisible ? 1 : 0)
             .scaleEffect(transition.appIconVisible ? 1 : 0.6)
             .animation(nil, value: isScanning)
@@ -42,7 +42,7 @@ struct ScanTransitionView: View {
             // Home buttons — sit below morphingText, left-aligned, collapse cleanly in scan state
             homeButtons
                 .padding(.top, 8)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, Self.horizontalInset)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: isScanning ? 0 : nil)
                 .clipped()
@@ -51,7 +51,7 @@ struct ScanTransitionView: View {
             scanContent
                 .frame(height: isScanning ? nil : 0)
                 .clipped()
-                .padding(.horizontal, 24)
+                .padding(.horizontal, Self.horizontalInset)
 
             Spacer()
             Spacer()
@@ -102,11 +102,9 @@ struct ScanTransitionView: View {
 
     private var morphingText: some View {
         GeometryReader { geo in
-            // Home state: SCAN is trailing-aligned and must touch the right edge of the screen,
+            // Home state: SCAN is trailing-aligned with its N flush to the screen edge,
             // matching the reference design. Scan state: SCANNING sits at leading with 24pt inset.
-            let leadingInset: CGFloat = 24 // used only in scan state (SCANNING top-left)
-            let trailingSafety: CGFloat = 0 // home state — N flush with the screen edge
-            let availableWidth = max(1, geo.size.width - trailingSafety)
+            let availableWidth = max(1, geo.size.width)
 
             // baseFontSize: size at which "SCAN" exactly fills availableWidth.
             let scanWidthAtRef = measureText("SCAN", size: Self.referenceFontSize)
@@ -152,8 +150,7 @@ struct ScanTransitionView: View {
             .opacity(transition.scanningTextVisible ? 1 : 0)
             .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
             .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
-            .padding(.leading, isScanning ? leadingInset : 0)
-            .padding(.trailing, isScanning ? 0 : trailingSafety)
+            .padding(.leading, isScanning ? Self.horizontalInset : 0)
         }
         .frame(height: Self.morphingTextContainerHeight)
     }
@@ -248,6 +245,9 @@ struct ScanTransitionView: View {
     // Cap so outer frame height is predictable across iPhone sizes and iPad portrait.
     private static let maxFontSize: CGFloat = referenceFontSize * 1.35
     private static let morphingTextContainerHeight: CGFloat = maxFontSize * 1.2
+
+    // Shared horizontal inset for scan-state text, home buttons, and scan content.
+    private static let horizontalInset: CGFloat = 24
 
     /// Offset to push trailing-aligned content just past the right viewport edge.
     /// Based on measured text width (the widest content), not hardcoded pixels.
