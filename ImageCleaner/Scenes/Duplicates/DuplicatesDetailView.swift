@@ -89,7 +89,7 @@ struct DuplicatesDetailView: View {
                         .font(AppFont.jost(size: 18, weight: 400))
                     Spacer()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppPalette.secondaryText)
             }
             
             Spacer()

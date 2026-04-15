@@ -180,7 +180,7 @@ struct ScanTransitionView: View {
             } label: {
                 Text("View Last Results")
                     .font(AppFont.subheadline)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(AppPalette.secondaryText)
             }
             .accessibilityLabel("View last scan results")
             .offset(x: transition.viewResultsVisible ? 0 : offScreenOffset)

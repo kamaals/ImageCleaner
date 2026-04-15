@@ -50,7 +50,7 @@ struct ResultsView: View {
 
                     Text("87 items found")
                         .font(AppFont.jost(size: 16, weight: 400))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppPalette.secondaryText)
                         .fixedSize()
                 }
             }

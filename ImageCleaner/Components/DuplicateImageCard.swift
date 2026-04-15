@@ -37,7 +37,7 @@ struct DuplicateImageCard: View {
             // File size label
             Text(image.formattedFileSize)
                 .font(AppFont.jost(size: 12, weight: 400))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppPalette.secondaryText)
         }
     }
 }

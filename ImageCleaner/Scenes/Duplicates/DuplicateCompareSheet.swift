@@ -26,7 +26,7 @@ struct DuplicateCompareSheet: View {
             // Bottom hint
             Text("Tap × to remove a duplicate")
                 .font(AppFont.jost(size: 14, weight: 400))
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppPalette.secondaryText)
                 .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -61,10 +61,10 @@ struct DuplicateCompareSheet: View {
                     
                     Text(photo.formattedTotalSize)
                         .font(AppFont.jost(size: 16, weight: 400))
-                    
+
                     Spacer()
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppPalette.secondaryText)
             }
         }
     }

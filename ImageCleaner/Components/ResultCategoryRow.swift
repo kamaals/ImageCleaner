@@ -26,7 +26,7 @@ struct ResultCategoryRow<Icon: View>: View {
                     Text(size)
                         .font(AppFont.jost(size: 14, weight: 400))
                 }
-                .foregroundStyle(.secondary)
+                .foregroundStyle(AppPalette.secondaryText)
             }
 
             Spacer()
