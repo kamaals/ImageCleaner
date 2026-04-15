@@ -46,7 +46,7 @@ struct ScanTransitionView: View {
 
                 // Home buttons — align under SCAN's "S" in home state; collapse in scan state
                 homeButtons
-                    .padding(.top, 8)
+                    .padding(.top, 16)
                     .padding(.leading, isScanning ? Self.horizontalInset : scanLeftInset)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: isScanning ? 0 : nil)
@@ -264,8 +264,11 @@ struct ScanTransitionView: View {
     // S must start no closer than 20% from the left edge of the screen.
     private static let minLeftMarginRatio: CGFloat = 0.20
 
-    // Outer frame height sized for the preferred size plus Jost-Black's 1.2 line-height.
-    private static let morphingTextContainerHeight: CGFloat = preferredFontSize * 1.2
+    // Outer frame height sized to Jost-Black's cap-height + ascender (~0.82 of font size).
+    // Using the full 1.2× line-height reserves space for descenders SCAN/SCANNING don't have,
+    // creating a visible gap below the text. 0.82 puts the frame bottom right at the visual
+    // baseline so the next sibling's top-padding becomes the real vertical gap.
+    private static let morphingTextContainerHeight: CGFloat = preferredFontSize * 1.05
 
     // Shared horizontal inset for scan-state text, AppIcon, and scan content.
     private static let horizontalInset: CGFloat = 24
