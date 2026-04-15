@@ -1,4 +1,5 @@
 import SwiftUI
+import CoreText
 
 struct ScanTransitionView: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -143,7 +144,7 @@ struct ScanTransitionView: View {
                 scanVM.startMockScan()
             } label: {
                 Text("SCANNING")
-                    .font(.custom("Jost-Black", size: baseFontSize))
+                    .font(Font(Self.jostBlackUIFont(size: baseFontSize)))
                     .tracking(-4 * (baseFontSize / Self.referenceFontSize))
                     .foregroundStyle(foreground)
                     .fixedSize(horizontal: true, vertical: false)
@@ -259,13 +260,10 @@ struct ScanTransitionView: View {
 
     // Fixed preferred size for SCAN in the home state. Does NOT grow on larger screens —
     // only shrinks if it would violate the left-margin rule on narrow ones.
-    // NOTE: kept conservative because real-device font metrics (custom Jost-Black)
-    // can render ~10-15% wider than UIFont reports in the simulator.
-    private static let preferredFontSize: CGFloat = 120
+    private static let preferredFontSize: CGFloat = 140
 
-    // S must start no closer than 25% from the left edge of the screen — leaves
-    // enough horizontal slack for device/simulator metric divergence.
-    private static let minLeftMarginRatio: CGFloat = 0.25
+    // S must start no closer than 20% from the left edge of the screen.
+    private static let minLeftMarginRatio: CGFloat = 0.20
 
     // Outer frame height sized to Jost-Black's cap-height + ascender (~0.82 of font size).
     // Using the full 1.2× line-height reserves space for descenders SCAN/SCANNING don't have,
@@ -306,11 +304,41 @@ struct ScanTransitionView: View {
 
     /// Width of `string` rendered in Jost-Black at `size` pt, with the -4 pt tracking
     /// applied manually (UIFont does not expose tracking, so we adjust afterward).
+    /// Uses the variable-font CoreText loader so measurement matches what SwiftUI
+    /// actually renders — `UIFont(name: "Jost-Black", ...)` fails strict PostScript-name
+    /// lookup on some devices and silently falls back to a narrower system font,
+    /// which makes the rendered text wider than predicted and clips at the screen edge.
     private func measureText(_ string: String, size: CGFloat = ScanTransitionView.referenceFontSize) -> CGFloat {
-        let font = UIFont(name: "Jost-Black", size: size) ?? .systemFont(ofSize: size, weight: .black)
+        let font = Self.jostBlackUIFont(size: size)
         let rawWidth = (string as NSString).size(withAttributes: [.font: font]).width
         // tracking(-4) in SwiftUI at 120pt removes ~4pt per character gap. Scale linearly with size.
         let trackingAdjustment = -4 * CGFloat(max(0, string.count - 1)) * (size / ScanTransitionView.referenceFontSize)
         return rawWidth + trackingAdjustment
+    }
+
+    // Variable-font CoreText loader for Jost-Black (weight 900).
+    // Shared between the SwiftUI render path and the UIFont measurement path so they
+    // cannot disagree on glyph widths.
+    private static let variableCGFont: CGFont? = {
+        guard let url = Bundle.main.url(forResource: "Jost-VariableFont_wght", withExtension: "ttf"),
+              let provider = CGDataProvider(url: url as CFURL),
+              let cgFont = CGFont(provider) else {
+            return nil
+        }
+        return cgFont
+    }()
+
+    private static let weightAxisTag: UInt32 = 0x77676874  // 'wght'
+
+    static func jostBlackUIFont(size: CGFloat) -> UIFont {
+        guard let cgFont = variableCGFont else {
+            return .systemFont(ofSize: size, weight: .black)
+        }
+        let ctFont = CTFontCreateWithGraphicsFont(cgFont, size, nil, nil)
+        let variation = CTFontDescriptorCreateWithAttributes([
+            kCTFontVariationAttribute: [weightAxisTag: 900 as CGFloat] as CFDictionary,
+        ] as CFDictionary)
+        let varied = CTFontCreateCopyWithAttributes(ctFont, size, nil, variation)
+        return varied as UIFont
     }
 }
