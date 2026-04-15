@@ -102,8 +102,11 @@ struct ScanTransitionView: View {
 
     private var morphingText: some View {
         GeometryReader { geo in
-            let sidePadding: CGFloat = 24
-            let availableWidth = max(1, geo.size.width - sidePadding * 2)
+            // Home state: SCAN is trailing-aligned and must touch the right edge of the screen,
+            // matching the reference design. Scan state: SCANNING sits at leading with 24pt inset.
+            let leadingInset: CGFloat = 24 // used only in scan state (SCANNING top-left)
+            let trailingSafety: CGFloat = 0 // home state — N flush with the screen edge
+            let availableWidth = max(1, geo.size.width - trailingSafety)
 
             // baseFontSize: size at which "SCAN" exactly fills availableWidth.
             let scanWidthAtRef = measureText("SCAN", size: Self.referenceFontSize)
@@ -148,8 +151,9 @@ struct ScanTransitionView: View {
             .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
             .opacity(transition.scanningTextVisible ? 1 : 0)
             .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.horizontal, sidePadding)
+            .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
+            .padding(.leading, isScanning ? leadingInset : 0)
+            .padding(.trailing, isScanning ? 0 : trailingSafety)
         }
         .frame(height: Self.morphingTextContainerHeight)
     }
