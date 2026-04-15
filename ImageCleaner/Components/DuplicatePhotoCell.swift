@@ -13,13 +13,14 @@ struct DuplicatePhotoCell: View {
                 .fill(Color.gray.opacity(photo.primaryShade))
                 .frame(height: photo.displayHeight)
             
-            // Duplicate count badge
+            // Duplicate count badge — opaque pill so the count reads cleanly
+            // over both light placeholders and photo thumbnails.
             Text("\(photo.duplicateCount)")
                 .font(AppFont.jost(size: 12, weight: 500))
-                .foregroundStyle(foreground)
+                .foregroundStyle(.white)
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
-                .background(Color.gray.opacity(0.3))
+                .background(Color.black.opacity(0.75), in: Capsule())
                 .padding(6)
             
             // Selection checkbox
