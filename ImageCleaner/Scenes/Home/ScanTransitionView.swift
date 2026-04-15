@@ -102,13 +102,19 @@ struct ScanTransitionView: View {
 
     private var morphingText: some View {
         GeometryReader { geo in
-            // Home state: SCAN is trailing-aligned with its N flush to the screen edge,
-            // matching the reference design. Scan state: SCANNING sits at leading with 24pt inset.
-            let availableWidth = max(1, geo.size.width)
+            // Design intent:
+            //   • N flush with the right edge of the screen (trailing alignment).
+            //   • S starts at minimum 20% from the left edge — i.e., SCAN's visual
+            //     width is at most 80% of the screen.
+            //   • On larger screens the font stays at the preferred size (doesn't grow);
+            //     on narrow screens it shrinks so the 20% left margin is preserved.
+            let screenWidth = max(1, geo.size.width)
+            let maxScanWidth = screenWidth * (1 - Self.minLeftMarginRatio)
 
-            // baseFontSize: size at which "SCAN" exactly fills availableWidth.
-            let scanWidthAtRef = measureText("SCAN", size: Self.referenceFontSize)
-            let baseFontSize = min((availableWidth / scanWidthAtRef) * Self.referenceFontSize, Self.maxFontSize)
+            // Pick fontSize: capped at preferred, reduced if preferred would exceed maxScanWidth.
+            let scanWidthAtPreferred = measureText("SCAN", size: Self.preferredFontSize)
+            let widthFitSize = (maxScanWidth / scanWidthAtPreferred) * Self.preferredFontSize
+            let baseFontSize = min(Self.preferredFontSize, widthFitSize)
 
             // scan-state small size is fixed at 40pt; derive a dynamic targetScale from baseFontSize.
             let scanStateFontSize: CGFloat = 40
@@ -242,9 +248,15 @@ struct ScanTransitionView: View {
     // 120 keeps diffs readable vs the old code.
     private static let referenceFontSize: CGFloat = 120
 
-    // Cap so outer frame height is predictable across iPhone sizes and iPad portrait.
-    private static let maxFontSize: CGFloat = referenceFontSize * 1.35
-    private static let morphingTextContainerHeight: CGFloat = maxFontSize * 1.2
+    // Fixed preferred size for SCAN in the home state. Does NOT grow on larger screens —
+    // only shrinks if it would violate the 20% left-margin rule on narrow ones.
+    private static let preferredFontSize: CGFloat = 140
+
+    // S must start no closer than 20% from the left edge of the screen.
+    private static let minLeftMarginRatio: CGFloat = 0.20
+
+    // Outer frame height sized for the preferred size plus Jost-Black's 1.2 line-height.
+    private static let morphingTextContainerHeight: CGFloat = preferredFontSize * 1.2
 
     // Shared horizontal inset for scan-state text, home buttons, and scan content.
     private static let horizontalInset: CGFloat = 24
