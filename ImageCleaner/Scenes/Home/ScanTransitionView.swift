@@ -100,34 +100,57 @@ struct ScanTransitionView: View {
     // MARK: - Morphing Text
 
     private var morphingText: some View {
-        let scanWidth = measureText("SCAN")
-        let scanningWidth = measureText("SCANNING")
-        let clipWidth = scanWidth + (scanningWidth - scanWidth) * transition.textRevealProgress
-        let scale = transition.textScale
+        GeometryReader { geo in
+            let sidePadding: CGFloat = 24
+            let availableWidth = max(1, geo.size.width - sidePadding * 2)
 
-        return Button {
-            guard !isScanning else { return }
-            if reduceMotion { transition.jumpToScanState() }
-            else { transition.animateToScan() }
-            scanVM.startMockScan()
-        } label: {
-            Text("SCANNING")
-                .font(.custom("Jost-Black", size: 120, relativeTo: .largeTitle))
-                .tracking(-4)
-                .foregroundStyle(foreground)
-                .fixedSize(horizontal: true, vertical: false)
-                .frame(width: clipWidth, alignment: .leading)
-                .clipped()
-                .scaleEffect(scale, anchor: .topLeading)
-                .frame(width: clipWidth * scale, height: 120 * scale, alignment: .topLeading)
+            // baseFontSize: size at which "SCAN" exactly fills availableWidth.
+            let scanWidthAtRef = measureText("SCAN", size: Self.referenceFontSize)
+            let baseFontSize = (availableWidth / scanWidthAtRef) * Self.referenceFontSize
+
+            // scan-state small size is fixed at 40pt; derive a dynamic targetScale from baseFontSize.
+            let scanStateFontSize: CGFloat = 40
+            let dynamicTargetScale = scanStateFontSize / baseFontSize
+
+            // Remap VM's textScale (1.0 at home → targetScale=40/120 at scan) into
+            // progress 0→1, then re-apply against the dynamic targetScale.
+            let vmRange = 1.0 - ScanTransitionViewModel.targetScale
+            let progress = vmRange > 0 ? (1.0 - transition.textScale) / vmRange : 0
+            let scale = 1.0 + (dynamicTargetScale - 1.0) * progress
+
+            let scanWidth = measureText("SCAN", size: baseFontSize)
+            let scanningWidth = measureText("SCANNING", size: baseFontSize)
+            let clipWidth = scanWidth + (scanningWidth - scanWidth) * transition.textRevealProgress
+
+            return Button {
+                guard !isScanning else { return }
+                if reduceMotion { transition.jumpToScanState() }
+                else { transition.animateToScan() }
+                scanVM.startMockScan()
+            } label: {
+                Text("SCANNING")
+                    .font(.custom("Jost-Black", size: baseFontSize, relativeTo: .largeTitle))
+                    .tracking(-4 * (baseFontSize / Self.referenceFontSize))
+                    .foregroundStyle(foreground)
+                    .fixedSize(horizontal: true, vertical: false)
+                    .frame(width: clipWidth, alignment: .leading)
+                    .clipped()
+                    .scaleEffect(scale, anchor: .topLeading)
+                    .frame(
+                        width: clipWidth * scale,
+                        height: baseFontSize * scale * 1.2, // 1.2 ≈ Jost-Black line height
+                        alignment: .topLeading
+                    )
+            }
+            .buttonStyle(.plain)
+            .disabled(isScanning)
+            .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
+            .opacity(transition.scanningTextVisible ? 1 : 0)
+            .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.horizontal, sidePadding)
         }
-        .disabled(isScanning)
-        .accessibilityLabel(isScanning ? "Scanning" : "Start scan")
-        .opacity(transition.scanningTextVisible ? 1 : 0)
-        .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
-        .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
-        .padding(.leading, isScanning ? 24 : 0)
-        .padding(.trailing, isScanning ? 0 : -12)
+        .frame(height: Self.referenceFontSize * 1.2)
     }
 
     // MARK: - Home Buttons
