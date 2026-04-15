@@ -258,11 +258,14 @@ struct ScanTransitionView: View {
     private static let referenceFontSize: CGFloat = 120
 
     // Fixed preferred size for SCAN in the home state. Does NOT grow on larger screens —
-    // only shrinks if it would violate the 20% left-margin rule on narrow ones.
-    private static let preferredFontSize: CGFloat = 140
+    // only shrinks if it would violate the left-margin rule on narrow ones.
+    // NOTE: kept conservative because real-device font metrics (custom Jost-Black)
+    // can render ~10-15% wider than UIFont reports in the simulator.
+    private static let preferredFontSize: CGFloat = 120
 
-    // S must start no closer than 20% from the left edge of the screen.
-    private static let minLeftMarginRatio: CGFloat = 0.20
+    // S must start no closer than 25% from the left edge of the screen — leaves
+    // enough horizontal slack for device/simulator metric divergence.
+    private static let minLeftMarginRatio: CGFloat = 0.25
 
     // Outer frame height sized to Jost-Black's cap-height + ascender (~0.82 of font size).
     // Using the full 1.2× line-height reserves space for descenders SCAN/SCANNING don't have,
@@ -275,8 +278,9 @@ struct ScanTransitionView: View {
 
     // Optical correction: how far past the screen edge to push the trailing edge
     // of the morphing text so the N glyph's right-side bearing doesn't leave a gap.
-    // Keep small — too large clips the N visibly.
-    private static let trailingOpticalBleed: CGFloat = 4
+    // Set to 0 on real-device builds because device font metrics already push N right
+    // to the edge; any positive bleed clips the glyph visibly.
+    private static let trailingOpticalBleed: CGFloat = 0
 
     /// Left offset where "S" of SCAN sits in the home state (trailing-aligned, fixed size).
     /// Used to align home buttons directly under SCAN's leading edge.
