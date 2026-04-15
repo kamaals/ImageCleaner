@@ -39,12 +39,13 @@ struct ScanTransitionView: View {
             // Morphing text (SCAN / SCANNING)
             morphingText
 
-            // Home buttons — independent of morphingText so they slide out freely
+            // Home buttons — sit below morphingText, left-aligned, collapse cleanly in scan state
             homeButtons
-                .padding(.top, 16)
-                .frame(maxWidth: .infinity, alignment: .trailing)
-                .padding(.trailing, 12)
+                .padding(.top, 8)
+                .padding(.horizontal, 24)
+                .frame(maxWidth: .infinity, alignment: .leading)
                 .frame(height: isScanning ? 0 : nil)
+                .clipped()
 
             // Scan content — elements stagger in after SCANNING positions
             scanContent
