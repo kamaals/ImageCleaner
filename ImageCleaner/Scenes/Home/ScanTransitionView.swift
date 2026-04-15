@@ -17,47 +17,53 @@ struct ScanTransitionView: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // AppIcon — hero target from splash, skips draw animation
-            AppIconView(
-                foreground: foreground,
-                invertedForeground: background,
-                skipDrawAnimation: heroNamespace != nil
-            )
-            .frame(width: 100, height: 100)
-            .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
-            .padding(.top, 40)
-            .padding(.horizontal, Self.horizontalInset)
-            .opacity(transition.appIconVisible ? 1 : 0)
-            .scaleEffect(transition.appIconVisible ? 1 : 0.6)
-            .animation(nil, value: isScanning)
+        GeometryReader { bodyGeo in
+            // Shared left inset: align home buttons under the "S" of SCAN.
+            // Computed once from screen width so both morphingText and homeButtons agree.
+            let scanLeftInset = scanLeftOffset(screenWidth: bodyGeo.size.width)
 
-            // Animated spacer — large in home, small in scan
-            Spacer()
-                .frame(maxHeight: isScanning ? 24 : .infinity)
-
-            // Morphing text (SCAN / SCANNING)
-            morphingText
-
-            // Home buttons — sit below morphingText, left-aligned, collapse cleanly in scan state
-            homeButtons
-                .padding(.top, 8)
+            VStack(alignment: .leading, spacing: 0) {
+                // AppIcon — hero target from splash, skips draw animation
+                AppIconView(
+                    foreground: foreground,
+                    invertedForeground: background,
+                    skipDrawAnimation: heroNamespace != nil
+                )
+                .frame(width: 100, height: 100)
+                .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
+                .padding(.top, 40)
                 .padding(.horizontal, Self.horizontalInset)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .frame(height: isScanning ? 0 : nil)
-                .clipped()
+                .opacity(transition.appIconVisible ? 1 : 0)
+                .scaleEffect(transition.appIconVisible ? 1 : 0.6)
+                .animation(nil, value: isScanning)
 
-            // Scan content — elements stagger in after SCANNING positions
-            scanContent
-                .frame(height: isScanning ? nil : 0)
-                .clipped()
-                .padding(.horizontal, Self.horizontalInset)
+                // Animated spacer — large in home, small in scan
+                Spacer()
+                    .frame(maxHeight: isScanning ? 24 : .infinity)
 
-            Spacer()
-            Spacer()
-                .frame(maxHeight: isScanning ? 0 : .infinity)
+                // Morphing text (SCAN / SCANNING)
+                morphingText
+
+                // Home buttons — align under SCAN's "S" in home state; collapse in scan state
+                homeButtons
+                    .padding(.top, 8)
+                    .padding(.leading, isScanning ? Self.horizontalInset : scanLeftInset)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .frame(height: isScanning ? 0 : nil)
+                    .clipped()
+
+                // Scan content — elements stagger in after SCANNING positions
+                scanContent
+                    .frame(height: isScanning ? nil : 0)
+                    .clipped()
+                    .padding(.horizontal, Self.horizontalInset)
+
+                Spacer()
+                Spacer()
+                    .frame(maxHeight: isScanning ? 0 : .infinity)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
         .geometryGroup()
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: isScanning)
         .toolbar {
@@ -157,6 +163,9 @@ struct ScanTransitionView: View {
             .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
             .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
             .padding(.leading, isScanning ? Self.horizontalInset : 0)
+            // Optical correction: pull the trailing edge slightly past the screen edge so
+            // Jost-Black's right-side bearing doesn't leave a visible gap after the N.
+            .padding(.trailing, isScanning ? 0 : -Self.trailingOpticalBleed)
         }
         .frame(height: Self.morphingTextContainerHeight)
     }
@@ -258,8 +267,26 @@ struct ScanTransitionView: View {
     // Outer frame height sized for the preferred size plus Jost-Black's 1.2 line-height.
     private static let morphingTextContainerHeight: CGFloat = preferredFontSize * 1.2
 
-    // Shared horizontal inset for scan-state text, home buttons, and scan content.
+    // Shared horizontal inset for scan-state text, AppIcon, and scan content.
     private static let horizontalInset: CGFloat = 24
+
+    // Optical correction: how far past the screen edge to push the trailing edge
+    // of the morphing text so the N glyph's right-side bearing doesn't leave a gap.
+    // Keep small — too large clips the N visibly.
+    private static let trailingOpticalBleed: CGFloat = 4
+
+    /// Left offset where "S" of SCAN sits in the home state (trailing-aligned, fixed size).
+    /// Used to align home buttons directly under SCAN's leading edge.
+    private func scanLeftOffset(screenWidth: CGFloat) -> CGFloat {
+        let maxScanWidth = screenWidth * (1 - Self.minLeftMarginRatio)
+        let scanWidthAtPreferred = measureText("SCAN", size: Self.preferredFontSize)
+        let widthFitSize = (maxScanWidth / scanWidthAtPreferred) * Self.preferredFontSize
+        let baseFontSize = min(Self.preferredFontSize, widthFitSize)
+        let scanWidth = measureText("SCAN", size: baseFontSize)
+        // Match the optical bleed applied to morphingText so buttons align with the
+        // visual left edge of the S, not the theoretical frame edge.
+        return max(Self.horizontalInset, screenWidth - scanWidth + Self.trailingOpticalBleed)
+    }
 
     /// Offset to push trailing-aligned content just past the right viewport edge.
     /// Based on measured text width (the widest content), not hardcoded pixels.
