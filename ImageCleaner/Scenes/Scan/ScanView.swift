@@ -29,7 +29,7 @@ struct ScanView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(.secondary.opacity(0.2))
+                        .fill(Color.primary.opacity(0.12))
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)
