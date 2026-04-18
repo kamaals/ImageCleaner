@@ -36,7 +36,13 @@ struct ContentView: View {
     }
 }
 
-#Preview {
+#Preview("Content") {
     ContentView()
         .environment(AppTheme())
+}
+
+#Preview("Icon draw animation") {
+    AppIconDrawAnimation()
+        .frame(width: 280, height: 280)
+        .padding(40)
 }
