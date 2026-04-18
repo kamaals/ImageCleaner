@@ -25,11 +25,11 @@ struct SplashView: View {
                     .frame(width: iconSize, height: iconSize)
                     .matchedGeometryEffect(id: "appIcon", in: heroNamespace)
 
-                VStack(alignment: .leading, spacing: iconSize * 0.008) {
+                VStack(alignment: .leading, spacing: -iconSize * 0.040) {
                     Text("Photo")
                     Text("Prune")
                 }
-                .font(AppFont.jost(size: iconSize * 0.095, weight: 400))
+                .font(AppFont.jost(size: iconSize * 0.08, weight: 400))
                 .foregroundStyle(foregroundColor)
                 .padding(.leading, iconSize * 0.23)
                 .padding(.top, iconSize * 0.55)
