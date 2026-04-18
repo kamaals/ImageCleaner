@@ -20,6 +20,8 @@ struct AppIconDrawAnimation: View {
     var backColor: Color
     var bridgeColor: Color
     var frontColor: Color
+    var skipDrawAnimation: Bool
+    var onFinished: (() -> Void)?
 
     @State private var backProgress: CGFloat = 0
     @State private var bridgeProgress: CGFloat = 0
@@ -31,11 +33,15 @@ struct AppIconDrawAnimation: View {
     init(
         backColor: Color = Color(light: Color(white: 0.75), dark: Color(white: 0.50)),
         bridgeColor: Color = Color(light: .black.opacity(0.25), dark: .white.opacity(0.20)),
-        frontColor: Color = Color(light: .black, dark: .white)
+        frontColor: Color = Color(light: .black, dark: .white),
+        skipDrawAnimation: Bool = false,
+        onFinished: (() -> Void)? = nil
     ) {
         self.backColor = backColor
         self.bridgeColor = bridgeColor
         self.frontColor = frontColor
+        self.skipDrawAnimation = skipDrawAnimation
+        self.onFinished = onFinished
     }
 
     var body: some View {
@@ -53,7 +59,11 @@ struct AppIconDrawAnimation: View {
         .task {
             guard !hasStarted else { return }
             hasStarted = true
-            reduceMotion ? showFinalState() : play()
+            if skipDrawAnimation || reduceMotion {
+                showFinalState()
+            } else {
+                play()
+            }
         }
     }
 
@@ -67,6 +77,8 @@ struct AppIconDrawAnimation: View {
             } completion: {
                 withAnimation(.easeOut(duration: 0.55)) {
                     frontProgress = 1
+                } completion: {
+                    onFinished?()
                 }
             }
         }
@@ -76,6 +88,7 @@ struct AppIconDrawAnimation: View {
         backProgress = 1
         bridgeProgress = 1
         frontProgress = 1
+        onFinished?()
     }
 
     private func reset() {

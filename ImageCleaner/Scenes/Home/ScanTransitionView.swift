@@ -25,18 +25,14 @@ struct ScanTransitionView: View {
 
             VStack(alignment: .leading, spacing: 0) {
                 // AppIcon — hero target from splash, skips draw animation
-                AppIconView(
-                    foreground: foreground,
-                    invertedForeground: background,
-                    skipDrawAnimation: heroNamespace != nil
-                )
-                .frame(width: 100, height: 100)
-                .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
-                .padding(.top, 40)
-                .padding(.horizontal, Self.horizontalInset)
-                .opacity(transition.appIconVisible ? 1 : 0)
-                .scaleEffect(transition.appIconVisible ? 1 : 0.6)
-                .animation(nil, value: isScanning)
+                AppIconDrawAnimation(skipDrawAnimation: heroNamespace != nil)
+                    .frame(width: 160, height: 160)
+                    .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
+                    .padding(.top, 40)
+                    .padding(.horizontal, Self.horizontalInset)
+                    .opacity(transition.appIconVisible ? 1 : 0)
+                    .scaleEffect(transition.appIconVisible ? 1 : 0.6)
+                    .animation(nil, value: isScanning)
 
                 // Animated spacer — large in home, small in scan
                 Spacer()

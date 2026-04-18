@@ -7,12 +7,9 @@ struct ScanView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Logo
-            AppIconView(
-                foreground: colorScheme == .dark ? .white : .black,
-                invertedForeground: colorScheme == .dark ? .black : .white
-            )
-            .frame(width: 120, height: 120)
-            .padding(.top, 24)
+            AppIconDrawAnimation()
+                .frame(width: 140, height: 140)
+                .padding(.top, 24)
 
             Spacer().frame(height: 24)
 
