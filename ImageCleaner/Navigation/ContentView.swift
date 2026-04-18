@@ -15,6 +15,7 @@ struct ContentView: View {
                         }
                     }
                 }
+            
                 .navigationDestination(for: HomeDestination.self) { destination in
                     switch destination {
                     case .scan:
@@ -45,4 +46,9 @@ struct ContentView: View {
     AppIconDrawAnimation()
         .frame(width: 280, height: 280)
         .padding(40)
+}
+
+#Preview("Splash View") {
+    SplashView()
+        .environment(AppTheme())
 }

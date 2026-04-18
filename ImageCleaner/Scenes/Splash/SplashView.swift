@@ -18,12 +18,9 @@ struct SplashView: View {
             backgroundColor.ignoresSafeArea()
 
             VStack(spacing: 24) {
-                AppIconView(
-                    foreground: foregroundColor,
-                    invertedForeground: backgroundColor
-                )
-                .frame(width: 160, height: 160)
-                .matchedGeometryEffect(id: "appIcon", in: heroNamespace)
+                AppIconDrawAnimation()
+                    .frame(width: 160, height: 160)
+                    .matchedGeometryEffect(id: "appIcon", in: heroNamespace)
 
                 Text("Image Cleaner")
                     .font(AppFont.title)
