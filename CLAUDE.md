@@ -16,7 +16,7 @@ No SPM dependencies — pure Xcode project.
 
 ## Architecture
 
-- **Platform**: iOS 26.4+, Swift 5, SwiftUI App lifecycle
+- **Platform**: iOS 18.0+, Swift 5, SwiftUI App lifecycle
 - **Data layer**: SwiftData (`@Model`, `ModelContainer`, `@Query`)
 - **UI font**: Futura (system-bundled, via `AppFont` enum)
 - **Theme**: `AppTheme` (`@Observable`) with dark/light/system appearance modes
