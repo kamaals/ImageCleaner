@@ -1,13 +1,22 @@
 import SwiftUI
 
 struct BlankPhotosDetailView: View {
+    @State private var viewModel = SinglePhotoCollectionViewModel(photos: SinglePhoto.blankMockData)
+
     var body: some View {
-        ContentUnavailableView(
-            "Blank Photos",
-            systemImage: "photo",
-            description: Text("7 blank photos found.")
+        SinglePhotoCollectionView(
+            title: "Blank Photos",
+            icon: { skipAnimation in
+                LayersIcon(skipAnimation: skipAnimation)
+            },
+            viewModel: viewModel
         )
-        .navigationTitle("Blank Photos")
-        .navigationBarTitleDisplayMode(.inline)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        BlankPhotosDetailView()
+            .environment(AppTheme())
     }
 }

@@ -7,12 +7,9 @@ struct ScanView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Logo
-            AppIconView(
-                foreground: colorScheme == .dark ? .white : .black,
-                invertedForeground: colorScheme == .dark ? .black : .white
-            )
-            .frame(width: 120, height: 120)
-            .padding(.top, 24)
+            AppIconDrawAnimation()
+                .frame(width: 140, height: 140)
+                .padding(.top, 24)
 
             Spacer().frame(height: 24)
 
@@ -29,7 +26,7 @@ struct ScanView: View {
             GeometryReader { geo in
                 ZStack(alignment: .leading) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(.secondary.opacity(0.2))
+                        .fill(Color.primary.opacity(0.12))
                         .frame(height: 8)
 
                     RoundedRectangle(cornerRadius: 4)
@@ -44,7 +41,7 @@ struct ScanView: View {
             // Scanned count
             HStack(spacing: 6) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 14))
+                    .font(.footnote)
                 Text("\(viewModel.scannedCount.formatted()) Scanned")
                     .font(AppFont.body)
             }
@@ -60,8 +57,8 @@ struct ScanView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 24)
-        .navigationBarBackButtonHidden(viewModel.isScanning)
+        .padding(.horizontal, AppLayout.horizontalInset)
+        .arrowBackButton(isHidden: viewModel.isScanning)
         .task {
             viewModel.startMockScan()
         }

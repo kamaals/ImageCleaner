@@ -10,6 +10,8 @@ final class ScanViewModel {
     var isScanning = false
     var scanCompleted = false
 
+    private var scanGeneration = 0
+
     var progress: Double {
         guard totalPhotos > 0 else { return 0 }
         return min(Double(scannedCount) / Double(totalPhotos), 1.0)
@@ -28,6 +30,9 @@ final class ScanViewModel {
     }
 
     func startMockScan() {
+        scanGeneration += 1
+        let thisGeneration = scanGeneration
+
         isScanning = true
         scanCompleted = false
         totalPhotos = 23_567
@@ -39,6 +44,7 @@ final class ScanViewModel {
         Task {
             while scannedCount < totalPhotos {
                 try? await Task.sleep(for: .milliseconds(10))
+                guard scanGeneration == thisGeneration else { return }
                 scannedCount = min(scannedCount + Int.random(in: 40...80), totalPhotos)
 
                 if scannedCount > 2_000 && duplicatesFound == 0 {
@@ -55,8 +61,14 @@ final class ScanViewModel {
                     screenshotsFound = min(screenshotsFound + Int.random(in: 2...8), 214)
                 }
             }
+            guard scanGeneration == thisGeneration else { return }
             isScanning = false
             scanCompleted = true
         }
+    }
+
+    func cancelMockScan() {
+        scanGeneration += 1
+        isScanning = false
     }
 }

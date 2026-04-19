@@ -1,9 +1,9 @@
 import Testing
+import SwiftUI
 @testable import ImageCleaner
 
 struct CheckboxToggleStyleTests {
-    @Test func checkboxToggleStyleExists() {
-        let style = CheckboxToggleStyle()
-        #expect(style != nil)
+    @Test func conformsToToggleStyle() {
+        let _: any ToggleStyle = CheckboxToggleStyle()
     }
 }

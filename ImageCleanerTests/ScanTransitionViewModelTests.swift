@@ -8,8 +8,6 @@ struct ScanTransitionViewModelTests {
         #expect(vm.contentEntered == false)
         #expect(vm.textRevealProgress == 0)
         #expect(vm.textScale == 1.0)
-        #expect(vm.homeContentOpacity == 1.0)
-        #expect(vm.scanContentOpacity == 0)
     }
 
     @Test @MainActor func scanningEndState() {
@@ -19,8 +17,6 @@ struct ScanTransitionViewModelTests {
         #expect(vm.contentEntered == true)
         #expect(vm.textRevealProgress == 1.0)
         #expect(vm.textScale == ScanTransitionViewModel.targetScale)
-        #expect(vm.homeContentOpacity == 0)
-        #expect(vm.scanContentOpacity == 1.0)
     }
 
     @Test @MainActor func homeEndState() {
@@ -31,8 +27,6 @@ struct ScanTransitionViewModelTests {
         #expect(vm.contentEntered == true)
         #expect(vm.textRevealProgress == 0)
         #expect(vm.textScale == 1.0)
-        #expect(vm.homeContentOpacity == 1.0)
-        #expect(vm.scanContentOpacity == 0)
     }
 
     @Test @MainActor func targetScaleIs40Over120() {

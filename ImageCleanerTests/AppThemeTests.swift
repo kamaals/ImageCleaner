@@ -3,23 +3,23 @@ import SwiftUI
 @testable import ImageCleaner
 
 struct AppThemeTests {
-    @Test func defaultAppearanceModeIsSystem() {
+    @Test @MainActor func defaultAppearanceModeIsSystem() {
         let theme = AppTheme()
         #expect(theme.appearanceMode == .system)
     }
 
-    @Test func systemModeResolvesToNil() {
+    @Test @MainActor func systemModeResolvesToNil() {
         let theme = AppTheme()
         #expect(theme.resolvedColorScheme == nil)
     }
 
-    @Test func lightModeResolvesToLight() {
+    @Test @MainActor func lightModeResolvesToLight() {
         let theme = AppTheme()
         theme.appearanceMode = .light
         #expect(theme.resolvedColorScheme == .light)
     }
 
-    @Test func darkModeResolvesToDark() {
+    @Test @MainActor func darkModeResolvesToDark() {
         let theme = AppTheme()
         theme.appearanceMode = .dark
         #expect(theme.resolvedColorScheme == .dark)

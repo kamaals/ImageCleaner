@@ -3,29 +3,29 @@ import SwiftUI
 @testable import ImageCleaner
 
 struct HomeViewModelTests {
-    @Test func forceRescanDefaultsToFalse() {
+    @Test @MainActor func forceRescanDefaultsToFalse() {
         let vm = HomeViewModel()
         #expect(vm.forceRescan == false)
     }
 
-    @Test func forceRescanCanBeToggled() {
+    @Test @MainActor func forceRescanCanBeToggled() {
         let vm = HomeViewModel()
         vm.forceRescan = true
         #expect(vm.forceRescan == true)
     }
 
-    @Test func navigationPathStartsEmpty() {
+    @Test @MainActor func navigationPathStartsEmpty() {
         let vm = HomeViewModel()
         #expect(vm.navigationPath.isEmpty)
     }
 
-    @Test func navigateToScanAddsToPath() {
+    @Test @MainActor func navigateToScanAddsToPath() {
         let vm = HomeViewModel()
         vm.navigateToScan()
         #expect(vm.navigationPath.count == 1)
     }
 
-    @Test func navigateToResultsAddsToPath() {
+    @Test @MainActor func navigateToResultsAddsToPath() {
         let vm = HomeViewModel()
         vm.navigateToResults()
         #expect(vm.navigationPath.count == 1)

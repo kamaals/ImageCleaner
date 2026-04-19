@@ -50,7 +50,7 @@ struct ResultsView: View {
 
                     Text("87 items found")
                         .font(AppFont.jost(size: 16, weight: 400))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(AppPalette.secondaryText)
                         .fixedSize()
                 }
             }
@@ -131,9 +131,10 @@ struct ResultsView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, AppLayout.horizontalInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .navigationBarTitleDisplayMode(.inline)
+        .arrowBackButton()
         .onAppear {
             if reduceMotion {
                 jumpToVisible()
@@ -194,67 +195,6 @@ struct ResultsView: View {
         }
     }
 
-    /// Exit animation: reverse order (last in, first out)
-    /// Call this before navigating away if you want exit animations
-    func animateExit(completion: @escaping () -> Void) {
-        let anim = Animation.easeIn(duration: 0.2)
-        let interval: Double = 0.06
-
-        // Exit in reverse order: blankPhotos → screenshots → duplicates → value → header
-        withAnimation(anim) {
-            blankPhotosVisible = false
-        }
-        withAnimation(anim.delay(interval)) {
-            screenshotsVisible = false
-        }
-        withAnimation(anim.delay(interval * 2)) {
-            duplicatesVisible = false
-        }
-        withAnimation(anim.delay(interval * 3)) {
-            valueVisible = false
-        }
-        withAnimation(anim.delay(interval * 4)) {
-            headerVisible = false
-        } completion: {
-            completion()
-        }
-    }
-}
-
-// MARK: - Result Category Row
-
-struct ResultCategoryRow<Icon: View>: View {
-    let icon: Icon
-    let title: String
-    let itemCount: Int
-    let size: String
-    var foreground: Color = .primary
-
-    var body: some View {
-        HStack(alignment: .center, spacing: 14) {
-            icon
-                .frame(width: 56, height: 56)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(title)
-                    .font(AppFont.jost(size: 20, weight: 500))
-                    .foregroundStyle(foreground)
-
-                HStack(spacing: 8) {
-                    Text("\(itemCount) items")
-                        .font(AppFont.jost(size: 14, weight: 400))
-                    Circle()
-                        .fill(.secondary)
-                        .frame(width: 4, height: 4)
-                    Text(size)
-                        .font(AppFont.jost(size: 14, weight: 400))
-                }
-                .foregroundStyle(.secondary)
-            }
-
-            Spacer()
-        }
-    }
 }
 
 #Preview {
