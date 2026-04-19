@@ -6,6 +6,7 @@ struct ScanTransitionView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var transition = ScanTransitionViewModel()
     @State private var scanVM = ScanViewModel()
+    @State private var hasPerformedInitialEntry = false
     @Bindable var homeVM: HomeViewModel
     var heroNamespace: Namespace.ID?
     @Namespace private var localNamespace
@@ -79,11 +80,22 @@ struct ScanTransitionView: View {
                 .accessibilityHidden(!isScanning)
             }
         }
-        .task {
-            guard !contentEntered else { return }
-            try? await Task.sleep(for: .milliseconds(600))
-            if reduceMotion { transition.jumpToEnteredState() }
-            else { transition.animateEntrance() }
+        .onAppear {
+            if !hasPerformedInitialEntry {
+                // First appearance — hero lands, then run the entrance stagger.
+                hasPerformedInitialEntry = true
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(600))
+                    if reduceMotion { transition.jumpToEnteredState() }
+                    else { transition.animateEntrance() }
+                }
+            } else {
+                // Re-appearance after a back-pop (e.g., from ResultsView):
+                // play the reverse-exit so the screen isn't just present
+                // with no animation.
+                if reduceMotion { transition.jumpToHomeState() }
+                else { transition.animateEntranceFromResults() }
+            }
         }
         .onChange(of: scanVM.scanCompleted) { _, completed in
             guard completed else { return }

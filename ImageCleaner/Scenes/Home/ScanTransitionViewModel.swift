@@ -73,6 +73,45 @@ final class ScanTransitionViewModel {
         }
     }
 
+    /// Re-entry (back-pop from Results): exact reverse of `animateToResults`.
+    /// AppIcon fades in → SCANNING text fades in → SCAN slides in → buttons
+    /// stagger. Requires `resetForReentry()` to have run first so every
+    /// animated value starts from its hidden/off-screen position.
+    func animateEntranceFromResults() {
+        withAnimation(.easeOut(duration: 0.3)) {
+            appIconVisible = true
+        }
+        withAnimation(.easeInOut(duration: 0.3).delay(0.1)) {
+            scanningTextVisible = true
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.2)) {
+            contentEntered = true
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.3)) {
+            viewResultsVisible = true
+        }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.85).delay(0.4)) {
+            forceRescanVisible = true
+        }
+    }
+
+    /// Silent reset to a pre-entry state (everything hidden / off-screen).
+    /// Must be called inside a `Transaction` with `disablesAnimations = true`
+    /// so it doesn't leak into any currently-running animation on the view.
+    /// Paired with `animateEntranceFromResults()` which is fired on the
+    /// view's `onAppear` after the back-pop.
+    func resetForReentry() {
+        isScanning = false
+        contentEntered = false
+        textRevealProgress = 0
+        textScale = 1.0
+        viewResultsVisible = false
+        forceRescanVisible = false
+        appIconVisible = false
+        scanningTextVisible = false
+        hideAllScanElements()
+    }
+
     /// Forward: buttons exit → text morphs → scan elements stagger in
     func animateToScan() {
         // Step 1: Exit buttons in reverse stagger (last in → first out)
@@ -128,20 +167,16 @@ final class ScanTransitionViewModel {
                     // still in their hidden state, so no re-entry animation
                     // leaks through during the navigation push.
                     navigate()
-                    // Step 5: After the push covers this view, silently reset
-                    // the home-state layout so a back-pop returns to a clean
-                    // home view without anything popping/animating back in.
-                    // `Transaction.disablesAnimations` suppresses the outer
-                    // .animation(value: isScanning) on ScanTransitionView
-                    // which would otherwise pick up this reset.
-                    Task { @MainActor [weak self] in
-                        try? await Task.sleep(for: .milliseconds(400))
-                        guard let self else { return }
-                        var tx = Transaction()
-                        tx.disablesAnimations = true
-                        withTransaction(tx) {
-                            self.jumpToHomeState()
-                        }
+                    // Step 5: Silently reset the remaining state (SCAN text,
+                    // buttons, scan elements) to a pre-entry "hidden" state so
+                    // a back-pop can re-run the full reverse-exit via
+                    // `animateEntranceFromResults()` on the view's onAppear.
+                    // Transaction.disablesAnimations suppresses the outer
+                    // .animation(value: isScanning) on ScanTransitionView.
+                    var tx = Transaction()
+                    tx.disablesAnimations = true
+                    withTransaction(tx) {
+                        self.resetForReentry()
                     }
                 }
             }
