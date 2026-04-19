@@ -57,8 +57,8 @@ struct ScanView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 24)
-        .navigationBarBackButtonHidden(viewModel.isScanning)
+        .padding(.horizontal, AppLayout.horizontalInset)
+        .arrowBackButton(isHidden: viewModel.isScanning)
         .task {
             viewModel.startMockScan()
         }

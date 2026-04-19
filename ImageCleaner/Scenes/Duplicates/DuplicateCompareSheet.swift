@@ -13,13 +13,13 @@ struct DuplicateCompareSheet: View {
             // Header section
             sheetHeader
                 .padding(.top, 24)
-                .padding(.horizontal, 24)
+                .padding(.horizontal, AppLayout.horizontalInset)
             
             // Images comparison section
             Spacer()
             
             imagesSection
-                .padding(.horizontal, 24)
+                .padding(.horizontal, AppLayout.horizontalInset)
             
             Spacer()
             

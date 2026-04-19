@@ -8,14 +8,6 @@ struct ContentView: View {
     var body: some View {
         NavigationStack(path: $viewModel.navigationPath) {
             ScanTransitionView(homeVM: viewModel, heroNamespace: heroNamespace)
-                .toolbar {
-                    ToolbarItem(placement: .topBarTrailing) {
-                        NavigationLink(value: HomeDestination.settings) {
-                            Label("Settings", systemImage: "gearshape")
-                        }
-                    }
-                }
-            
                 .navigationDestination(for: HomeDestination.self) { destination in
                     switch destination {
                     case .scan:

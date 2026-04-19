@@ -9,5 +9,6 @@ struct ScreenshotsDetailView: View {
         )
         .navigationTitle("Screenshots")
         .navigationBarTitleDisplayMode(.inline)
+        .arrowBackButton()
     }
 }

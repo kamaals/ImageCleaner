@@ -103,7 +103,7 @@ struct DuplicatesDetailView: View {
                 viewModel.setSelectAll(newValue)
             }
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, AppLayout.horizontalInset)
         .padding(.top, 16)
         .opacity(viewModel.headerVisible ? 1 : 0)
         .offset(x: viewModel.headerVisible ? 0 : offScreenX)
@@ -131,7 +131,7 @@ struct DuplicatesDetailView: View {
                         .offset(x: -4, y: 4)
                 )
         }
-        .padding(.leading, 24)
+        .padding(.leading, AppLayout.horizontalInset)
         .padding(.top, 24)
         .opacity(viewModel.buttonVisible ? 1 : 0)
         .offset(x: viewModel.buttonVisible ? 0 : offScreenX)
@@ -153,7 +153,7 @@ struct DuplicatesDetailView: View {
                     )
                 }
             }
-            .padding(.horizontal, 24)
+            .padding(.horizontal, AppLayout.horizontalInset)
             .padding(.top, 24)
             .padding(.bottom, 100)
         }

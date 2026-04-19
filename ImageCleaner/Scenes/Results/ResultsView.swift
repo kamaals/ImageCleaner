@@ -131,9 +131,10 @@ struct ResultsView: View {
 
             Spacer()
         }
-        .padding(.horizontal, 24)
+        .padding(.horizontal, AppLayout.horizontalInset)
         .frame(maxWidth: .infinity, alignment: .leading)
         .navigationBarTitleDisplayMode(.inline)
+        .arrowBackButton()
         .onAppear {
             if reduceMotion {
                 jumpToVisible()

@@ -7,6 +7,7 @@ struct ScanTransitionView: View {
     @State private var transition = ScanTransitionViewModel()
     @State private var scanVM = ScanViewModel()
     @State private var hasPerformedInitialEntry = false
+    @State private var showCancelScanConfirmation = false
     @Bindable var homeVM: HomeViewModel
     var heroNamespace: Namespace.ID?
     @Namespace private var localNamespace
@@ -45,7 +46,7 @@ struct ScanTransitionView: View {
                 // Home buttons — align under SCAN's "S" in home state; collapse in scan state
                 homeButtons
                     .padding(.top, 16)
-                    .padding(.leading, isScanning ? Self.horizontalInset : scanLeftInset)
+                    .padding(.leading, isScanning ? AppLayout.horizontalInset : scanLeftInset)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .frame(height: isScanning ? 0 : nil)
                     .clipped()
@@ -54,7 +55,7 @@ struct ScanTransitionView: View {
                 scanContent
                     .frame(height: isScanning ? nil : 0)
                     .clipped()
-                    .padding(.horizontal, Self.horizontalInset)
+                    .padding(.horizontal, AppLayout.horizontalInset)
 
                 Spacer()
                 Spacer()
@@ -65,20 +66,34 @@ struct ScanTransitionView: View {
         .geometryGroup()
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: isScanning)
         .toolbar {
-            ToolbarItem(placement: .topBarLeading) {
-                Button {
-                    scanVM = ScanViewModel()
-                    if reduceMotion { transition.jumpToHomeState() }
-                    else { transition.animateToHome() }
-                } label: {
-                    Image(systemName: "chevron.left")
-                        .fontWeight(.semibold)
+            ToolbarItem(placement: .topBarTrailing) {
+                if isScanning {
+                    Button("Cancel") {
+                        showCancelScanConfirmation = true
+                    }
+                    .foregroundStyle(foreground)
+                    .accessibilityLabel("Cancel scan")
+                } else {
+                    NavigationLink(value: HomeDestination.settings) {
+                        Image(systemName: "gearshape")
+                    }
+                    .accessibilityLabel("Settings")
                 }
-                .opacity(isScanning ? 1 : 0)
-                .disabled(!isScanning)
-                .accessibilityLabel("Go back")
-                .accessibilityHidden(!isScanning)
             }
+        }
+        .confirmationDialog(
+            "Cancel scan?",
+            isPresented: $showCancelScanConfirmation,
+            titleVisibility: .visible
+        ) {
+            Button("Cancel Scan", role: .destructive) {
+                scanVM = ScanViewModel()
+                if reduceMotion { transition.jumpToHomeState() }
+                else { transition.animateToHome() }
+            }
+            Button("Keep Scanning", role: .cancel) {}
+        } message: {
+            Text("Scan progress will be discarded.")
         }
         .onAppear {
             if !hasPerformedInitialEntry {
@@ -171,7 +186,7 @@ struct ScanTransitionView: View {
             .opacity(transition.scanningTextVisible ? 1 : 0)
             .offset(x: contentEntered || isScanning ? 0 : offScreenOffset)
             .frame(maxWidth: .infinity, alignment: isScanning ? .leading : .trailing)
-            .padding(.leading, isScanning ? Self.horizontalInset : 0)
+            .padding(.leading, isScanning ? AppLayout.horizontalInset : 0)
             // Optical correction: pull the trailing edge slightly past the screen edge so
             // Jost-Black's right-side bearing doesn't leave a visible gap after the N.
             .padding(.trailing, isScanning ? 0 : -Self.trailingOpticalBleed)
@@ -279,9 +294,6 @@ struct ScanTransitionView: View {
     // baseline so the next sibling's top-padding becomes the real vertical gap.
     private static let morphingTextContainerHeight: CGFloat = preferredFontSize * 1.05
 
-    // Shared horizontal inset for scan-state text, AppIcon, and scan content.
-    private static let horizontalInset: CGFloat = 24
-
     // Optical correction: how far past the screen edge to push the trailing edge
     // of the morphing text so the N glyph's right-side bearing doesn't leave a gap.
     // Set to 0 on real-device builds because device font metrics already push N right
@@ -298,7 +310,7 @@ struct ScanTransitionView: View {
         let scanWidth = measureText("SCAN", size: baseFontSize)
         // Match the optical bleed applied to morphingText so buttons align with the
         // visual left edge of the S, not the theoretical frame edge.
-        return max(Self.horizontalInset, screenWidth - scanWidth + Self.trailingOpticalBleed)
+        return max(AppLayout.horizontalInset, screenWidth - scanWidth + Self.trailingOpticalBleed)
     }
 
     /// Offset to push trailing-aligned content just past the right viewport edge.

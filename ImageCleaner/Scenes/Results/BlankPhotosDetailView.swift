@@ -9,5 +9,6 @@ struct BlankPhotosDetailView: View {
         )
         .navigationTitle("Blank Photos")
         .navigationBarTitleDisplayMode(.inline)
+        .arrowBackButton()
     }
 }

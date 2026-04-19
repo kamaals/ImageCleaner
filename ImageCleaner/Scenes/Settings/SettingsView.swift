@@ -20,6 +20,7 @@ struct SettingsView: View {
             }
         }
         .navigationTitle("Settings")
+        .arrowBackButton()
     }
 }
 
