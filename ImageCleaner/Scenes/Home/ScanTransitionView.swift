@@ -29,7 +29,7 @@ struct ScanTransitionView: View {
                     .frame(width: 160, height: 160)
                     .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
                     .padding(.top, 40)
-                    .padding(.horizontal, Self.horizontalInset)
+                    .padding(.horizontal, 0)
                     .opacity(transition.appIconVisible ? 1 : 0)
                     .scaleEffect(transition.appIconVisible ? 1 : 0.6)
                     .animation(nil, value: isScanning)

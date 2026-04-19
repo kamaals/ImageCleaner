@@ -2,11 +2,19 @@ import SwiftUI
 
 struct SplashView: View {
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Namespace private var heroNamespace
     @State private var isFinished = false
     @State private var showWordmark = false
 
     private let iconSize: CGFloat = 240
+
+    /// Entry and exit share this animation — toggling `showWordmark` runs it
+    /// both directions, so exit mirrors entry exactly.
+    private let wordmarkAnimation: Animation = .easeOut(duration: 0.45)
+
+    /// Hold the wordmark fully visible for this long before starting the exit.
+    private let wordmarkHoldSeconds: Double = 1.0
 
     var body: some View {
         if isFinished {
@@ -21,7 +29,7 @@ struct SplashView: View {
             backgroundColor.ignoresSafeArea()
 
             ZStack(alignment: .topLeading) {
-                AppIconDrawAnimation(onFinished: revealWordmark)
+                AppIconDrawAnimation(onFinished: runWordmarkSequence)
                     .frame(width: iconSize, height: iconSize)
                     .matchedGeometryEffect(id: "appIcon", in: heroNamespace)
 
@@ -35,21 +43,30 @@ struct SplashView: View {
                 .padding(.top, iconSize * 0.55)
                 .opacity(showWordmark ? 1 : 0)
                 .offset(y: showWordmark ? 0 : 6)
-                .animation(.easeOut(duration: 0.45), value: showWordmark)
                 .accessibilityLabel("PhotoPrune")
             }
             .frame(width: iconSize, height: iconSize)
         }
-        .task {
-            try? await Task.sleep(for: .seconds(3.8))
+    }
+
+    /// Fires after `AppIconDrawAnimation` completes its draw-in. Reveals the
+    /// wordmark, holds, exits it with the same animation (reverse direction),
+    /// then hands off to `ContentView` via the `matchedGeometryEffect` hero.
+    private func runWordmarkSequence() {
+        Task { @MainActor in
+            // Entry
+            withAnimation(wordmarkAnimation) { showWordmark = true }
+            try? await Task.sleep(for: .seconds(0.45 + wordmarkHoldSeconds))
+
+            // Exit — same animation, direction reverses via showWordmark flip
+            withAnimation(wordmarkAnimation) { showWordmark = false }
+            try? await Task.sleep(for: .milliseconds(450))
+
+            // Now hand off to ContentView
             withAnimation(.spring(response: 0.7, dampingFraction: 0.85)) {
                 isFinished = true
             }
         }
-    }
-
-    private func revealWordmark() {
-        showWordmark = true
     }
 
     private var foregroundColor: Color {

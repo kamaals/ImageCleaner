@@ -62,26 +62,28 @@ struct AppIconDrawAnimation: View {
             if skipDrawAnimation || reduceMotion {
                 showFinalState()
             } else {
-                play()
+                await play()
             }
         }
     }
 
-    private func play() {
+    /// Sequential phase animation. Using `Task.sleep` between phases instead
+    /// of nested `withAnimation { } completion:` closures is more reliable on
+    /// real devices where completion callbacks can be swallowed when they
+    /// land on a busy main queue.
+    private func play() async {
         reset()
-        withAnimation(.easeOut(duration: 0.55)) {
-            backProgress = 1
-        } completion: {
-            withAnimation(.easeInOut(duration: 0.6)) {
-                bridgeProgress = 1
-            } completion: {
-                withAnimation(.easeOut(duration: 0.55)) {
-                    frontProgress = 1
-                } completion: {
-                    onFinished?()
-                }
-            }
-        }
+
+        withAnimation(.easeOut(duration: 0.55)) { backProgress = 1 }
+        try? await Task.sleep(for: .milliseconds(550))
+
+        withAnimation(.easeInOut(duration: 0.6)) { bridgeProgress = 1 }
+        try? await Task.sleep(for: .milliseconds(600))
+
+        withAnimation(.easeOut(duration: 0.55)) { frontProgress = 1 }
+        try? await Task.sleep(for: .milliseconds(550))
+
+        onFinished?()
     }
 
     private func showFinalState() {
@@ -100,9 +102,9 @@ struct AppIconDrawAnimation: View {
     private func replay() {
         guard !reduceMotion else { return }
         reset()
-        Task {
+        Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(120))
-            play()
+            await play()
         }
     }
 }

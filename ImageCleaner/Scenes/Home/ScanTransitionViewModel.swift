@@ -124,9 +124,25 @@ final class ScanTransitionViewModel {
                 withAnimation(.easeOut(duration: 0.3)) {
                     self.appIconVisible = false
                 } completion: {
-                    // Step 4: Reset state for return, then navigate
-                    self.jumpToHomeState()
+                    // Step 4: Push ResultsView *while* the icon + scan text are
+                    // still in their hidden state, so no re-entry animation
+                    // leaks through during the navigation push.
                     navigate()
+                    // Step 5: After the push covers this view, silently reset
+                    // the home-state layout so a back-pop returns to a clean
+                    // home view without anything popping/animating back in.
+                    // `Transaction.disablesAnimations` suppresses the outer
+                    // .animation(value: isScanning) on ScanTransitionView
+                    // which would otherwise pick up this reset.
+                    Task { @MainActor [weak self] in
+                        try? await Task.sleep(for: .milliseconds(400))
+                        guard let self else { return }
+                        var tx = Transaction()
+                        tx.disablesAnimations = true
+                        withTransaction(tx) {
+                            self.jumpToHomeState()
+                        }
+                    }
                 }
             }
         }
