@@ -1,14 +1,22 @@
 import SwiftUI
 
 struct ScreenshotsDetailView: View {
+    @State private var viewModel = SinglePhotoCollectionViewModel(photos: SinglePhoto.screenshotMockData)
+
     var body: some View {
-        ContentUnavailableView(
-            "Screenshots",
-            systemImage: "camera.viewfinder",
-            description: Text("67 screenshots found.")
+        SinglePhotoCollectionView(
+            title: "Screenshots",
+            icon: { skipAnimation in
+                ScanLinesIcon(skipAnimation: skipAnimation)
+            },
+            viewModel: viewModel
         )
-        .navigationTitle("Screenshots")
-        .navigationBarTitleDisplayMode(.inline)
-        .arrowBackButton()
+    }
+}
+
+#Preview {
+    NavigationStack {
+        ScreenshotsDetailView()
+            .environment(AppTheme())
     }
 }
