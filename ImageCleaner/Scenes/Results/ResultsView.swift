@@ -195,31 +195,6 @@ struct ResultsView: View {
         }
     }
 
-    /// Exit animation: reverse order (last in, first out)
-    /// Call this before navigating away if you want exit animations
-    func animateExit(completion: @escaping () -> Void) {
-        let anim = Animation.easeIn(duration: 0.2)
-        let interval: Double = 0.06
-
-        // Exit in reverse order: blankPhotos → screenshots → duplicates → value → header
-        withAnimation(anim) {
-            blankPhotosVisible = false
-        }
-        withAnimation(anim.delay(interval)) {
-            screenshotsVisible = false
-        }
-        withAnimation(anim.delay(interval * 2)) {
-            duplicatesVisible = false
-        }
-        withAnimation(anim.delay(interval * 3)) {
-            valueVisible = false
-        }
-        withAnimation(anim.delay(interval * 4)) {
-            headerVisible = false
-        } completion: {
-            completion()
-        }
-    }
 }
 
 #Preview {

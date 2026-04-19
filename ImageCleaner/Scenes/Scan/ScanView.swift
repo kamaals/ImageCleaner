@@ -41,7 +41,7 @@ struct ScanView: View {
             // Scanned count
             HStack(spacing: 6) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 14))
+                    .font(.footnote)
                 Text("\(viewModel.scannedCount.formatted()) Scanned")
                     .font(AppFont.body)
             }
