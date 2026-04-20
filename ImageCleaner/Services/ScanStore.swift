@@ -320,7 +320,7 @@ final class ScanStore {
             id: UUID(),
             localIdentifier: asset.localIdentifier,
             shade: displayShade(brightness: asset.brightness),
-            displayHeight: displayHeight(width: asset.pixelWidth, height: asset.pixelHeight),
+            aspectRatio: aspectRatio(width: asset.pixelWidth, height: asset.pixelHeight),
             fileSize: asset.fileSize,
             createdAt: asset.createdAt,
             isSelected: false
@@ -333,7 +333,7 @@ final class ScanStore {
         let primary = members.first
         return DuplicatePhoto(
             id: UUID(),
-            displayHeight: displayHeight(
+            aspectRatio: aspectRatio(
                 width: primary?.pixelWidth ?? 0,
                 height: primary?.pixelHeight ?? 0
             ),
@@ -357,14 +357,11 @@ final class ScanStore {
         return 1 - clamped // flip so lighter photos render with lower opacity gray
     }
 
-    /// Waterfall display height derived from the pixel aspect ratio, clamped
-    /// into the same range as the mock data (80…250) so the grid stays
-    /// visually balanced.
-    private static func displayHeight(width: Int, height: Int) -> CGFloat {
-        guard width > 0 else { return 120 }
-        let ratio = CGFloat(height) / CGFloat(width)
-        let base: CGFloat = 110
-        let scaled = base * ratio
-        return min(max(scaled, 80), 250)
+    /// Clamped pixel aspect ratio (width / height) used by the Pinterest
+    /// grid. Clamped so extreme panoramas don't produce absurd row heights.
+    private static func aspectRatio(width: Int, height: Int) -> Double {
+        guard width > 0, height > 0 else { return 1.0 }
+        let raw = Double(width) / Double(height)
+        return min(max(raw, 0.4), 2.5)
     }
 }

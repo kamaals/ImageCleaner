@@ -155,10 +155,15 @@ struct SinglePhotoCollectionView<Icon: View>: View {
 
     private var gridSection: some View {
         ScrollView {
-            WaterfallGrid(columns: 3, spacing: 8) {
-                ForEach($viewModel.photos) { $photo in
+            PinterestGrid(
+                items: viewModel.photos,
+                columns: 3,
+                spacing: 8,
+                aspectRatio: { $0.aspectRatio }
+            ) { photo in
+                if let binding = viewModel.binding(for: photo.id) {
                     SinglePhotoCell(
-                        photo: $photo,
+                        photo: binding,
                         foreground: foreground,
                         isInSelectionMode: viewModel.isInSelectionMode,
                         onTap: {

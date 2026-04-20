@@ -11,6 +11,22 @@ final class DuplicatesViewModel {
     init(photos: [DuplicatePhoto] = DuplicatePhoto.mockData) {
         self.photos = photos
     }
+
+    /// Produces a `Binding` to an element of `photos` by id — used by the
+    /// Pinterest grid cells so they can two-way bind the per-photo
+    /// `isSelected` flag.
+    func binding(for id: UUID) -> Binding<DuplicatePhoto>? {
+        guard let index = photos.firstIndex(where: { $0.id == id }) else { return nil }
+        return Binding(
+            get: { [weak self] in
+                self?.photos[safe: index] ?? self?.photos.first ?? DuplicatePhoto(images: [])
+            },
+            set: { [weak self] newValue in
+                guard let self, self.photos.indices.contains(index) else { return }
+                self.photos[index] = newValue
+            }
+        )
+    }
     
     // Animation state
     var headerVisible = false

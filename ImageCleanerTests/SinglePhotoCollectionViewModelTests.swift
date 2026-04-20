@@ -9,7 +9,7 @@ struct SinglePhotoCollectionViewModelTests {
     }
 
     private func samplePhoto(fileSize: Int64 = 1_000_000, isSelected: Bool = false) -> SinglePhoto {
-        SinglePhoto(shade: 0.5, displayHeight: 120, fileSize: fileSize, isSelected: isSelected)
+        SinglePhoto(shade: 0.5, aspectRatio: 1.0, fileSize: fileSize, isSelected: isSelected)
     }
 
     // MARK: - Initial state

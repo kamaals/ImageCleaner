@@ -92,7 +92,7 @@ struct DuplicateCompareSheet: View {
 #Preview("2 Duplicates") {
     DuplicateCompareSheet(
         photo: DuplicatePhoto(
-            displayHeight: 150,
+            aspectRatio: 1.0,
             images: [
                 DuplicateImage(shade: 0.5, fileSize: 2_500_000),
                 DuplicateImage(shade: 0.55, fileSize: 2_480_000)
@@ -108,7 +108,7 @@ struct DuplicateCompareSheet: View {
 #Preview("3 Duplicates") {
     DuplicateCompareSheet(
         photo: DuplicatePhoto(
-            displayHeight: 150,
+            aspectRatio: 1.0,
             images: [
                 DuplicateImage(shade: 0.5, fileSize: 2_500_000),
                 DuplicateImage(shade: 0.55, fileSize: 2_480_000),
@@ -125,7 +125,7 @@ struct DuplicateCompareSheet: View {
 #Preview("1 Remaining - No Delete") {
     DuplicateCompareSheet(
         photo: DuplicatePhoto(
-            displayHeight: 150,
+            aspectRatio: 1.0,
             images: [
                 DuplicateImage(shade: 0.5, fileSize: 2_500_000)
             ]

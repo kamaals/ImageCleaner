@@ -146,6 +146,9 @@ actor PhotoScanner {
             classified.append(contentsOf: batchResults)
             progress.processed = classified.count
             progress.blanksFound = classified.reduce(0) { $0 + ($1.isBlank ? 1 : 0) }
+            // Live duplicate count — cheap because `cluster` bucket-filters
+            // by dimensions first so typical libraries yield small buckets.
+            progress.duplicateGroupsFound = cluster(classified).count
             onProgress(progress)
         }
 

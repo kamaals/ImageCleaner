@@ -12,7 +12,6 @@ struct DuplicatePhotoCell: View {
                 localIdentifier: photo.images.first?.localIdentifier,
                 placeholderShade: photo.primaryShade
             )
-            .frame(height: photo.displayHeight)
             
             // Duplicate count badge — opaque pill so the count reads cleanly
             // over both light placeholders and photo thumbnails.
@@ -54,7 +53,7 @@ struct DuplicatePhotoCell: View {
     VStack(spacing: 16) {
         DuplicatePhotoCell(
             photo: .constant(DuplicatePhoto(
-                displayHeight: 150,
+                aspectRatio: 1.0,
                 images: [
                     DuplicateImage(shade: 0.5, fileSize: 2_500_000),
                     DuplicateImage(shade: 0.55, fileSize: 2_480_000)
@@ -67,7 +66,7 @@ struct DuplicatePhotoCell: View {
         
         DuplicatePhotoCell(
             photo: .constant(DuplicatePhoto(
-                displayHeight: 120,
+                aspectRatio: 1.0,
                 images: [
                     DuplicateImage(shade: 0.7, fileSize: 1_800_000),
                     DuplicateImage(shade: 0.75, fileSize: 1_750_000),

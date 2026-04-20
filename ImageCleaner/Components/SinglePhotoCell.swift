@@ -15,7 +15,6 @@ struct SinglePhotoCell: View {
                 localIdentifier: photo.localIdentifier,
                 placeholderShade: photo.shade
             )
-            .frame(height: photo.displayHeight)
 
             VStack {
                 Spacer()
@@ -45,14 +44,14 @@ struct SinglePhotoCell: View {
 #Preview {
     VStack(spacing: 16) {
         SinglePhotoCell(
-            photo: .constant(SinglePhoto(shade: 0.92, displayHeight: 150, fileSize: 320_000)),
+            photo: .constant(SinglePhoto(shade: 0.92, aspectRatio: 1.0, fileSize: 320_000)),
             foreground: .black,
             isInSelectionMode: false
         )
         .frame(width: 120)
 
         SinglePhotoCell(
-            photo: .constant(SinglePhoto(shade: 0.4, displayHeight: 180, fileSize: 2_100_000, isSelected: true)),
+            photo: .constant(SinglePhoto(shade: 0.4, aspectRatio: 1.0, fileSize: 2_100_000, isSelected: true)),
             foreground: .black,
             isInSelectionMode: true
         )

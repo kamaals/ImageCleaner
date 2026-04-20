@@ -98,7 +98,7 @@ struct SinglePhotoViewerSheet<Icon: View>: View {
 
 #Preview("Blank photo") {
     SinglePhotoViewerSheet(
-        photo: SinglePhoto(shade: 0.92, displayHeight: 180, fileSize: 320_000),
+        photo: SinglePhoto(shade: 0.92, aspectRatio: 1.0, fileSize: 320_000),
         title: "Blank Photo",
         icon: { LayersIcon(foreground: .black, invertedForeground: .white, skipAnimation: true) },
         foreground: .black,
@@ -110,7 +110,7 @@ struct SinglePhotoViewerSheet<Icon: View>: View {
 
 #Preview("Screenshot") {
     SinglePhotoViewerSheet(
-        photo: SinglePhoto(shade: 0.35, displayHeight: 240, fileSize: 2_400_000),
+        photo: SinglePhoto(shade: 0.35, aspectRatio: 1.0, fileSize: 2_400_000),
         title: "Screenshot",
         icon: { ScanLinesIcon(foreground: .black, invertedForeground: .white, skipAnimation: true) },
         foreground: .black,

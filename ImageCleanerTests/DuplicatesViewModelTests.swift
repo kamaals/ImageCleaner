@@ -16,7 +16,7 @@ struct DuplicatesViewModelTests {
         let imgs = (0..<images).map { i in
             DuplicateImage(shade: 0.5, fileSize: 1_000_000 + Int64(i))
         }
-        return DuplicatePhoto(displayHeight: 100, images: imgs, isSelected: isSelected)
+        return DuplicatePhoto(aspectRatio: 1.0, images: imgs, isSelected: isSelected)
     }
 
     // MARK: - Initial state
@@ -44,11 +44,11 @@ struct DuplicatesViewModelTests {
     }
 
     @Test func totalSizeSumsBytesAcrossGroups() {
-        let group1 = DuplicatePhoto(displayHeight: 100, images: [
+        let group1 = DuplicatePhoto(aspectRatio: 1.0, images: [
             DuplicateImage(shade: 0.5, fileSize: 1_000),
             DuplicateImage(shade: 0.5, fileSize: 2_000),
         ])
-        let group2 = DuplicatePhoto(displayHeight: 100, images: [
+        let group2 = DuplicatePhoto(aspectRatio: 1.0, images: [
             DuplicateImage(shade: 0.5, fileSize: 4_000),
         ])
         let vm = makeVM(photos: [group1, group2])
@@ -145,7 +145,7 @@ struct DuplicatesViewModelTests {
         let img1 = DuplicateImage(shade: 0.1, fileSize: 100)
         let img2 = DuplicateImage(shade: 0.2, fileSize: 200)
         let img3 = DuplicateImage(shade: 0.3, fileSize: 300)
-        let group = DuplicatePhoto(displayHeight: 100, images: [img1, img2, img3])
+        let group = DuplicatePhoto(aspectRatio: 1.0, images: [img1, img2, img3])
         let vm = makeVM(photos: [group])
 
         vm.deleteImage(img2, from: group)
@@ -163,7 +163,7 @@ struct DuplicatesViewModelTests {
         // We assert the immediate sync behaviour: image removed, sheet dismissed.
         let img1 = DuplicateImage(shade: 0.1, fileSize: 100)
         let img2 = DuplicateImage(shade: 0.2, fileSize: 200)
-        let group = DuplicatePhoto(displayHeight: 100, images: [img1, img2])
+        let group = DuplicatePhoto(aspectRatio: 1.0, images: [img1, img2])
         let vm = makeVM(photos: [group])
         vm.selectedPhotoForComparison = group
 
@@ -174,7 +174,7 @@ struct DuplicatesViewModelTests {
     }
 
     @Test func deleteImageNoOpWhenGroupNotFound() {
-        let stranger = DuplicatePhoto(displayHeight: 100, images: [
+        let stranger = DuplicatePhoto(aspectRatio: 1.0, images: [
             DuplicateImage(shade: 0.5, fileSize: 100),
             DuplicateImage(shade: 0.5, fileSize: 200),
         ])
@@ -186,7 +186,7 @@ struct DuplicatesViewModelTests {
 
     @Test func deleteImageNoOpWhenOnlyOneImageInGroup() {
         let img = DuplicateImage(shade: 0.5, fileSize: 100)
-        let group = DuplicatePhoto(displayHeight: 100, images: [img])
+        let group = DuplicatePhoto(aspectRatio: 1.0, images: [img])
         let vm = makeVM(photos: [group])
         vm.deleteImage(img, from: group)
         #expect(vm.photos[0].images.count == 1) // no change

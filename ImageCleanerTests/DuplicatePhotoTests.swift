@@ -39,7 +39,7 @@ struct DuplicatePhotoTests {
         let images = (0..<imageCount).map { i in
             DuplicateImage(shade: Double(i) * 0.1, fileSize: baseSize + Int64(i))
         }
-        return DuplicatePhoto(displayHeight: 100, images: images)
+        return DuplicatePhoto(aspectRatio: 1.0, images: images)
     }
 
     @Test func duplicateCountReflectsImageCount() {
@@ -53,12 +53,12 @@ struct DuplicatePhotoTests {
             DuplicateImage(shade: 0.42, fileSize: 100),
             DuplicateImage(shade: 0.99, fileSize: 200),
         ]
-        let photo = DuplicatePhoto(displayHeight: 100, images: images)
+        let photo = DuplicatePhoto(aspectRatio: 1.0, images: images)
         #expect(photo.primaryShade == 0.42)
     }
 
     @Test func primaryShadeFallsBackTo05WhenEmpty() {
-        let photo = DuplicatePhoto(displayHeight: 100, images: [])
+        let photo = DuplicatePhoto(aspectRatio: 1.0, images: [])
         #expect(photo.primaryShade == 0.5)
     }
 
@@ -68,12 +68,12 @@ struct DuplicatePhotoTests {
             DuplicateImage(shade: 0.5, fileSize: 2_500_000),
             DuplicateImage(shade: 0.5, fileSize: 500_000),
         ]
-        let photo = DuplicatePhoto(displayHeight: 100, images: images)
+        let photo = DuplicatePhoto(aspectRatio: 1.0, images: images)
         #expect(photo.totalSize == 4_000_000)
     }
 
     @Test func totalSizeIsZeroWhenEmpty() {
-        let photo = DuplicatePhoto(displayHeight: 100, images: [])
+        let photo = DuplicatePhoto(aspectRatio: 1.0, images: [])
         #expect(photo.totalSize == 0)
     }
 

@@ -27,13 +27,15 @@ struct DuplicateImage: Identifiable, Equatable {
 /// Represents a group of duplicate photos
 struct DuplicatePhoto: Identifiable, Equatable {
     let id: UUID
-    let displayHeight: CGFloat // For waterfall grid
+    /// Aspect ratio (width / height) of the primary photo, used by the
+    /// Pinterest grid to size the cell in proportion to its column width.
+    let aspectRatio: Double
     var images: [DuplicateImage] // The duplicate images (2 or 3)
     var isSelected: Bool
-    
-    init(id: UUID = UUID(), displayHeight: CGFloat, images: [DuplicateImage], isSelected: Bool = false) {
+
+    init(id: UUID = UUID(), aspectRatio: Double = 1.0, images: [DuplicateImage], isSelected: Bool = false) {
         self.id = id
-        self.displayHeight = displayHeight
+        self.aspectRatio = aspectRatio
         self.images = images
         self.isSelected = isSelected
     }
@@ -66,14 +68,14 @@ struct DuplicatePhoto: Identifiable, Equatable {
     /// Mock data for preview and testing
     static let mockData: [DuplicatePhoto] = [
         DuplicatePhoto(
-            displayHeight: 180,
+            aspectRatio: 0.65,
             images: [
                 DuplicateImage(shade: 0.5, fileSize: 2_500_000, createdAt: Date.now.addingTimeInterval(-86400)),
                 DuplicateImage(shade: 0.55, fileSize: 2_480_000, createdAt: Date.now.addingTimeInterval(-86000))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 120,
+            aspectRatio: 1.05,
             images: [
                 DuplicateImage(shade: 0.85, fileSize: 1_800_000, createdAt: Date.now.addingTimeInterval(-172800)),
                 DuplicateImage(shade: 0.8, fileSize: 1_750_000, createdAt: Date.now.addingTimeInterval(-172000)),
@@ -81,7 +83,7 @@ struct DuplicatePhoto: Identifiable, Equatable {
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 160,
+            aspectRatio: 0.75,
             images: [
                 DuplicateImage(shade: 0.6, fileSize: 3_200_000, createdAt: Date.now.addingTimeInterval(-259200)),
                 DuplicateImage(shade: 0.65, fileSize: 3_150_000, createdAt: Date.now.addingTimeInterval(-259000)),
@@ -89,21 +91,21 @@ struct DuplicatePhoto: Identifiable, Equatable {
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 100,
+            aspectRatio: 1.25,
             images: [
                 DuplicateImage(shade: 0.7, fileSize: 980_000, createdAt: Date.now.addingTimeInterval(-345600)),
                 DuplicateImage(shade: 0.75, fileSize: 950_000, createdAt: Date.now.addingTimeInterval(-345000))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 200,
+            aspectRatio: 0.55,
             images: [
                 DuplicateImage(shade: 0.45, fileSize: 4_500_000, createdAt: Date.now.addingTimeInterval(-432000)),
                 DuplicateImage(shade: 0.5, fileSize: 4_450_000, createdAt: Date.now.addingTimeInterval(-431500))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 140,
+            aspectRatio: 0.85,
             images: [
                 DuplicateImage(shade: 0.55, fileSize: 2_100_000, createdAt: Date.now.addingTimeInterval(-518400)),
                 DuplicateImage(shade: 0.6, fileSize: 2_050_000, createdAt: Date.now.addingTimeInterval(-518000)),
@@ -111,21 +113,21 @@ struct DuplicatePhoto: Identifiable, Equatable {
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 80,
+            aspectRatio: 1.5,
             images: [
                 DuplicateImage(shade: 0.75, fileSize: 750_000, createdAt: Date.now.addingTimeInterval(-604800)),
                 DuplicateImage(shade: 0.7, fileSize: 720_000, createdAt: Date.now.addingTimeInterval(-604000))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 220,
+            aspectRatio: 0.48,
             images: [
                 DuplicateImage(shade: 0.5, fileSize: 5_200_000, createdAt: Date.now.addingTimeInterval(-691200)),
                 DuplicateImage(shade: 0.45, fileSize: 5_150_000, createdAt: Date.now.addingTimeInterval(-690500))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 110,
+            aspectRatio: 1.15,
             images: [
                 DuplicateImage(shade: 0.65, fileSize: 1_400_000, createdAt: Date.now.addingTimeInterval(-777600)),
                 DuplicateImage(shade: 0.6, fileSize: 1_350_000, createdAt: Date.now.addingTimeInterval(-777000)),
@@ -133,21 +135,21 @@ struct DuplicatePhoto: Identifiable, Equatable {
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 170,
+            aspectRatio: 0.7,
             images: [
                 DuplicateImage(shade: 0.4, fileSize: 3_800_000, createdAt: Date.now.addingTimeInterval(-864000)),
                 DuplicateImage(shade: 0.45, fileSize: 3_750_000, createdAt: Date.now.addingTimeInterval(-863500))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 130,
+            aspectRatio: 0.95,
             images: [
                 DuplicateImage(shade: 0.8, fileSize: 1_600_000, createdAt: Date.now.addingTimeInterval(-950400)),
                 DuplicateImage(shade: 0.75, fileSize: 1_550_000, createdAt: Date.now.addingTimeInterval(-949900))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 150,
+            aspectRatio: 0.8,
             images: [
                 DuplicateImage(shade: 0.35, fileSize: 2_800_000, createdAt: Date.now.addingTimeInterval(-1036800)),
                 DuplicateImage(shade: 0.4, fileSize: 2_750_000, createdAt: Date.now.addingTimeInterval(-1036200)),
@@ -155,21 +157,21 @@ struct DuplicatePhoto: Identifiable, Equatable {
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 90,
+            aspectRatio: 1.4,
             images: [
                 DuplicateImage(shade: 0.55, fileSize: 890_000, createdAt: Date.now.addingTimeInterval(-1123200)),
                 DuplicateImage(shade: 0.5, fileSize: 860_000, createdAt: Date.now.addingTimeInterval(-1122600))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 180,
+            aspectRatio: 0.65,
             images: [
                 DuplicateImage(shade: 0.45, fileSize: 4_100_000, createdAt: Date.now.addingTimeInterval(-1209600)),
                 DuplicateImage(shade: 0.5, fileSize: 4_050_000, createdAt: Date.now.addingTimeInterval(-1209000))
             ]
         ),
         DuplicatePhoto(
-            displayHeight: 120,
+            aspectRatio: 1.05,
             images: [
                 DuplicateImage(shade: 0.7, fileSize: 1_500_000, createdAt: Date.now.addingTimeInterval(-1296000)),
                 DuplicateImage(shade: 0.65, fileSize: 1_450_000, createdAt: Date.now.addingTimeInterval(-1295400)),
