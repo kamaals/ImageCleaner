@@ -1,40 +1,43 @@
 import SwiftUI
 
-/// Lazy-loading thumbnail view for a PhotoKit asset. Pulls the image via
-/// `ScanStore.thumbnail(for:pixelSize:)` on appear and falls back to the
-/// placeholder shade while loading (or when backed by mock data without a
-/// `localIdentifier`).
+/// Lazy-loading thumbnail view for a PhotoKit asset.
+///
+/// Uses the canonical `Color.overlay { Image }.clipped()` pattern: the base
+/// `Color` claims the proposed size (the cell's explicit width×height), the
+/// overlay matches that frame, and the resizable + `.scaledToFill()` image
+/// scales into it with center-crop. `.clipped()` on the Color — not on a
+/// ZStack — guarantees the rendered thumbnail never extends past the cell's
+/// bounds, which was the cause of the prior "wrong-position" clipping bug.
+///
+/// Thumbnails are streamed from `ScanStore.thumbnailStream(...)` — the cell
+/// paints the degraded preview immediately and sharpens in-place once the
+/// high-quality delivery lands.
 struct AssetThumbnailView: View {
     let localIdentifier: String?
-    /// Opacity (0…1) of the gray placeholder shown before the image lands.
+    /// Opacity (0…1) of the gray placeholder shown before the first image lands.
     var placeholderShade: Double = 0.5
-    /// PhotoKit thumbnail target size. 256pt is a good balance between
-    /// cell sharpness and memory for a 3-column waterfall.
-    var pixelSize: Int = 256
-    var contentMode: ContentMode = .fill
+    /// PhotoKit thumbnail target size. 384pt keeps cells sharp in a 2-column
+    /// Pinterest layout (cell width ≈ 180pt on an iPhone) across @2x/@3x.
+    var pixelSize: Int = 384
 
     @Environment(ScanStore.self) private var store
     @State private var cgImage: CGImage?
 
     var body: some View {
-        ZStack {
-            Rectangle()
-                .fill(Color.gray.opacity(placeholderShade))
-
-            if let cgImage {
-                Image(decorative: cgImage, scale: 1)
-                    .resizable()
-                    .aspectRatio(contentMode: contentMode)
+        Color.gray.opacity(placeholderShade)
+            .overlay {
+                if let cgImage {
+                    Image(decorative: cgImage, scale: 1)
+                        .resizable()
+                        .scaledToFill()
+                }
             }
-        }
-        .clipped()
-        .task(id: localIdentifier) {
-            guard let id = localIdentifier else { return }
-            // If the view re-uses across cells, only re-fetch when the
-            // identifier actually changes.
-            if let loaded = await store.thumbnail(for: id, pixelSize: pixelSize) {
-                await MainActor.run { cgImage = loaded }
+            .clipped()
+            .task(id: localIdentifier) {
+                guard let id = localIdentifier else { return }
+                for await image in store.thumbnailStream(for: id, pixelSize: pixelSize) {
+                    await MainActor.run { cgImage = image }
+                }
             }
-        }
     }
 }

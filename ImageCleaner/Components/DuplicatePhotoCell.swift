@@ -5,39 +5,30 @@ struct DuplicatePhotoCell: View {
     var foreground: Color
     var isInSelectionMode: Bool = false
     var onTap: (() -> Void)?
-    
+
+    private static let cornerRadius: CGFloat = 14
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             AssetThumbnailView(
                 localIdentifier: photo.images.first?.localIdentifier,
                 placeholderShade: photo.primaryShade
             )
-            
-            // Duplicate count badge — opaque pill so the count reads cleanly
-            // over both light placeholders and photo thumbnails.
+
+            // Duplicate count badge — opaque pill reads cleanly over both
+            // light placeholders and photo thumbnails.
             Text("\(photo.duplicateCount)")
-                .font(AppFont.jost(size: 12, weight: 500))
+                .font(AppFont.jost(size: 13, weight: 500))
                 .foregroundStyle(.white)
-                .padding(.horizontal, 6)
-                .padding(.vertical, 2)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
                 .background(Color.black.opacity(0.75), in: Capsule())
-                .padding(6)
-            
-            // Selection checkbox
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Toggle(isOn: $photo.isSelected) {
-                        EmptyView()
-                    }
-                    .toggleStyle(CheckboxToggleStyle())
-                    .frame(minWidth: 44, minHeight: 44)
-                    .padding(8)
-                }
-            }
+                .padding(10)
+
+            PhotoSelectionOverlay(isSelected: $photo.isSelected)
         }
-        .contentShape(Rectangle())
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .accessibilityAddTraits(.isButton)
         .onTapGesture {
             if isInSelectionMode {
@@ -63,7 +54,7 @@ struct DuplicatePhotoCell: View {
             isInSelectionMode: false
         )
         .frame(width: 120)
-        
+
         DuplicatePhotoCell(
             photo: .constant(DuplicatePhoto(
                 aspectRatio: 1.0,

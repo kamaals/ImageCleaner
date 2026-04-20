@@ -277,7 +277,63 @@ struct ScanTransitionView: View {
                     .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
             }
             .padding(.top, 24)
+
+            // 7. Pause / Resume button + "View Results So Far" link
+            pauseControls
+                .padding(.top, 24)
+                .opacity(transition.blankPhotosRowVisible ? 1 : 0)
+                .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
         }
+    }
+
+    // MARK: - Pause Controls
+
+    private var hasPartialResults: Bool {
+        !store.duplicates.isEmpty || !store.screenshots.isEmpty || !store.blanks.isEmpty
+    }
+
+    private var pauseControls: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Button {
+                if store.isPaused { store.resumeScan() }
+                else { store.pauseScan() }
+            } label: {
+                Text(store.isPaused ? "Resume" : "Pause")
+                    .font(AppFont.jost(size: 18, weight: 300))
+                    .foregroundStyle(foreground)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(background)
+                    .overlay(
+                        Rectangle()
+                            .stroke(foreground, lineWidth: 1)
+                    )
+                    .background(
+                        Rectangle()
+                            .fill(foreground)
+                            .offset(x: -4, y: 4)
+                    )
+            }
+            .accessibilityLabel(store.isPaused ? "Resume scan" : "Pause scan")
+
+            if store.isPaused && hasPartialResults {
+                Button {
+                    homeVM.navigateToResults()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("View Results So Far")
+                        Image(systemName: "arrow.right")
+                            .font(.footnote)
+                    }
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(AppPalette.secondaryText)
+                }
+                .accessibilityLabel("View results so far")
+                .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: store.isPaused)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: hasPartialResults)
     }
 
     // MARK: - Helpers

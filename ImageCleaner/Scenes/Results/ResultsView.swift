@@ -9,18 +9,20 @@ struct ResultsView: View {
     private var background: Color { colorScheme == .dark ? .black : .white }
 
     private var totalItemsFound: Int {
-        guard let session = store.latestSession else { return 0 }
-        return session.duplicateGroupCount + session.screenshotCount + session.blankCount
+        // Derive from the live arrays so the header stays in sync with
+        // mid-scan partial results (when there's no `ScanSession` yet) as
+        // well as completed scans.
+        duplicateGroupCount + screenshotCount + blankCount
     }
 
     private var reclaimableText: String {
-        let bytes = store.latestSession?.reclaimableBytes ?? 0
+        let bytes = duplicateBytes + screenshotBytes + blankBytes
         return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
     }
 
-    private var duplicateGroupCount: Int { store.latestSession?.duplicateGroupCount ?? 0 }
-    private var screenshotCount: Int { store.latestSession?.screenshotCount ?? 0 }
-    private var blankCount: Int { store.latestSession?.blankCount ?? 0 }
+    private var duplicateGroupCount: Int { store.duplicates.count }
+    private var screenshotCount: Int { store.screenshots.count }
+    private var blankCount: Int { store.blanks.count }
 
     private var duplicateBytes: Int64 {
         store.duplicates.reduce(0) { running, group in

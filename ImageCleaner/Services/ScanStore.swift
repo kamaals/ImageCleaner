@@ -29,6 +29,7 @@ final class ScanStore {
     private(set) var screenshots: [SinglePhoto] = []
     private(set) var scanProgress: ScanProgress = ScanProgress()
     private(set) var isScanning = false
+    private(set) var isPaused = false
     private(set) var lastError: String?
     private var currentScanTask: Task<Void, Never>?
 
@@ -118,10 +119,14 @@ final class ScanStore {
             do {
                 let result = try await self.scanner.scan(
                     forceRescan: forceRescan,
-                    cache: cache
-                ) { [weak self] snapshot in
-                    Task { @MainActor in self?.scanProgress = snapshot }
-                }
+                    cache: cache,
+                    onProgress: { [weak self] snapshot in
+                        Task { @MainActor in self?.scanProgress = snapshot }
+                    },
+                    onPartialResult: { [weak self] partial in
+                        Task { @MainActor in self?.applyPartialResult(partial) }
+                    }
+                )
                 try Task.checkCancellation()
                 self.persist(result: result)
                 self.reloadFromPersisted()
@@ -131,10 +136,25 @@ final class ScanStore {
                 self.lastError = error.localizedDescription
             }
             self.isScanning = false
+            self.isPaused = false
             self.currentScanTask = nil
         }
         currentScanTask = task
         await task.value
+    }
+
+    // MARK: - Pause / Resume
+
+    func pauseScan() {
+        guard isScanning, !isPaused else { return }
+        isPaused = true
+        Task { await scanner.pause() }
+    }
+
+    func resumeScan() {
+        guard isScanning, isPaused else { return }
+        isPaused = false
+        Task { await scanner.resume() }
     }
 
     /// Cancels any in-flight scan. Safe to call when nothing is running.
@@ -144,12 +164,74 @@ final class ScanStore {
         isScanning = false
     }
 
+    // MARK: - Partial result handling
+
+    /// Refresh the live UI arrays from a partial scan snapshot. Called from
+    /// the scanner after every Phase-C batch so "View Results So Far" has
+    /// meaningful content even before the scan completes.
+    func applyPartialResult(_ partial: ScanResult) {
+        let byID = Dictionary(uniqueKeysWithValues: partial.classifiedAssets.map { ($0.localIdentifier, $0) })
+
+        duplicates = partial.duplicateClusters.compactMap { cluster -> DuplicatePhoto? in
+            let members = cluster.compactMap { byID[$0] }
+            guard members.count >= 2 else { return nil }
+            let primary = members.first!
+            return DuplicatePhoto(
+                id: UUID(),
+                aspectRatio: ScanStore.aspectRatio(
+                    width: primary.pixelWidth,
+                    height: primary.pixelHeight
+                ),
+                images: members.map { classified in
+                    DuplicateImage(
+                        id: UUID(),
+                        localIdentifier: classified.localIdentifier,
+                        shade: ScanStore.displayShade(brightness: classified.brightness),
+                        fileSize: classified.fileSize,
+                        createdAt: classified.createdAt
+                    )
+                },
+                isSelected: false
+            )
+        }
+
+        let screenshotsClassified = partial.classifiedAssets.filter(\.isScreenshot)
+        screenshots = screenshotsClassified
+            .sorted { $0.createdAt > $1.createdAt }
+            .map(ScanStore.makeSinglePhoto(fromClassified:))
+
+        let blanksClassified = partial.classifiedAssets.filter { $0.isBlank && !$0.isScreenshot }
+        blanks = blanksClassified
+            .sorted { $0.createdAt > $1.createdAt }
+            .map(ScanStore.makeSinglePhoto(fromClassified:))
+    }
+
+    private static func makeSinglePhoto(fromClassified asset: ClassifiedAsset) -> SinglePhoto {
+        SinglePhoto(
+            id: UUID(),
+            localIdentifier: asset.localIdentifier,
+            shade: displayShade(brightness: asset.brightness),
+            aspectRatio: aspectRatio(width: asset.pixelWidth, height: asset.pixelHeight),
+            fileSize: asset.fileSize,
+            createdAt: asset.createdAt,
+            isSelected: false
+        )
+    }
+
     // MARK: - Thumbnails
 
-    /// Async thumbnail loader used by cells + viewer sheets. Delegates to the
-    /// underlying `PhotoLibrary` so tests can substitute a fake.
+    /// Async thumbnail loader used by viewer sheets and callers that only
+    /// need a single image. Delegates to the underlying `PhotoLibrary` so
+    /// tests can substitute a fake.
     func thumbnail(for localIdentifier: String, pixelSize: Int) async -> CGImage? {
         await library.thumbnailCGImage(localIdentifier: localIdentifier, pixelSize: pixelSize)
+    }
+
+    /// Progressive thumbnail stream for grid cells: yields the fast degraded
+    /// preview first, then the high-quality upgrade. Cells consume it via
+    /// `for await` so the UI shows pixels immediately and sharpens in-place.
+    func thumbnailStream(for localIdentifier: String, pixelSize: Int) -> AsyncStream<CGImage> {
+        library.thumbnailStream(localIdentifier: localIdentifier, pixelSize: pixelSize)
     }
 
     /// Hard reset of every persisted scan artifact. Used by Force Re-Scan.

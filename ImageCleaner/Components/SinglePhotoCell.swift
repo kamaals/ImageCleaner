@@ -9,6 +9,8 @@ struct SinglePhotoCell: View {
     var isInSelectionMode: Bool = false
     var onTap: (() -> Void)?
 
+    private static let cornerRadius: CGFloat = 14
+
     var body: some View {
         ZStack(alignment: .topLeading) {
             AssetThumbnailView(
@@ -16,20 +18,10 @@ struct SinglePhotoCell: View {
                 placeholderShade: photo.shade
             )
 
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    Toggle(isOn: $photo.isSelected) {
-                        EmptyView()
-                    }
-                    .toggleStyle(CheckboxToggleStyle())
-                    .frame(minWidth: 44, minHeight: 44)
-                    .padding(8)
-                }
-            }
+            PhotoSelectionOverlay(isSelected: $photo.isSelected)
         }
-        .contentShape(Rectangle())
+        .clipShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
+        .contentShape(RoundedRectangle(cornerRadius: Self.cornerRadius, style: .continuous))
         .accessibilityAddTraits(.isButton)
         .onTapGesture {
             if isInSelectionMode {

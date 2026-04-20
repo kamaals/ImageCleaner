@@ -157,8 +157,8 @@ struct SinglePhotoCollectionView<Icon: View>: View {
         ScrollView {
             PinterestGrid(
                 items: viewModel.photos,
-                columns: 3,
-                spacing: 8,
+                columns: 2,
+                spacing: 12,
                 aspectRatio: { $0.aspectRatio }
             ) { photo in
                 if let binding = viewModel.binding(for: photo.id) {

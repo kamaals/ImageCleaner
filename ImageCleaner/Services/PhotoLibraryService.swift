@@ -29,7 +29,14 @@ protocol PhotoLibrary: Sendable {
     func authorizationStatus() async -> PHAuthorizationStatus
     func requestAuthorization() async -> PHAuthorizationStatus
     func fetchAllPhotoAssets() async -> [PhotoAssetDescriptor]
+    /// Returns a single thumbnail suitable for the scanner's pixel analysis
+    /// (dHash/brightness). Uses opportunistic delivery and accepts the first
+    /// usable image — even a degraded preview has plenty of pixels for a dHash.
     func thumbnailCGImage(localIdentifier: String, pixelSize: Int) async -> CGImage?
+    /// Streams thumbnails for UI: yields the fast degraded preview first
+    /// (instant feedback), then the high-quality upgrade. The stream finishes
+    /// after the last delivery so the caller can `for await` the whole sequence.
+    func thumbnailStream(localIdentifier: String, pixelSize: Int) -> AsyncStream<CGImage>
     func deleteAssets(localIdentifiers: [String]) async throws
 }
 
@@ -136,6 +143,49 @@ final class PhotoLibraryService: PhotoLibrary {
                     didResume = true
                     continuation.resume(returning: nil)
                 }
+            }
+        }
+    }
+
+    func thumbnailStream(localIdentifier: String, pixelSize: Int) -> AsyncStream<CGImage> {
+        AsyncStream { continuation in
+            let result = PHAsset.fetchAssets(withLocalIdentifiers: [localIdentifier], options: nil)
+            guard let asset = result.firstObject else {
+                continuation.finish()
+                return
+            }
+
+            let options = PHImageRequestOptions()
+            options.resizeMode = .exact
+            options.deliveryMode = .opportunistic
+            options.isNetworkAccessAllowed = true
+            options.isSynchronous = false
+            options.version = .current
+
+            let effectiveSize = CGFloat(max(pixelSize, 128))
+            let targetSize = CGSize(width: effectiveSize, height: effectiveSize)
+
+            let requestID = imageManager.requestImage(
+                for: asset,
+                targetSize: targetSize,
+                contentMode: .aspectFill,
+                options: options
+            ) { image, info in
+                if let image = image?.cgImage {
+                    continuation.yield(image)
+                }
+                let isDegraded = (info?[PHImageResultIsDegradedKey] as? Bool) ?? false
+                let cancelled = (info?[PHImageCancelledKey] as? Bool) ?? false
+                // Opportunistic delivery sends degraded first, then the final
+                // high-quality upgrade with `isDegraded == false`. Finish only
+                // after the non-degraded delivery (or on cancel/error).
+                if !isDegraded || cancelled {
+                    continuation.finish()
+                }
+            }
+
+            continuation.onTermination = { @Sendable _ in
+                PHImageManager.default().cancelImageRequest(requestID)
             }
         }
     }

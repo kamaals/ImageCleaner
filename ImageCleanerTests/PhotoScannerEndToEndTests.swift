@@ -27,6 +27,14 @@ struct PhotoScannerEndToEndTests {
         func thumbnailCGImage(localIdentifier: String, pixelSize: Int) async -> CGImage? {
             thumbnails[localIdentifier]
         }
+        func thumbnailStream(localIdentifier: String, pixelSize: Int) -> AsyncStream<CGImage> {
+            AsyncStream { continuation in
+                if let image = thumbnails[localIdentifier] {
+                    continuation.yield(image)
+                }
+                continuation.finish()
+            }
+        }
         func deleteAssets(localIdentifiers: [String]) async throws {}
     }
 

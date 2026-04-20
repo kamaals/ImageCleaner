@@ -85,6 +85,11 @@ actor PhotoScanner {
     private let blankVarianceCeiling: Double
     private let uniformVarianceCeiling: Double
 
+    /// Pause/resume state. `pauseContinuation` is only non-nil while the scan
+    /// loop is parked inside `awaitResumeIfPaused()`.
+    private(set) var isPaused = false
+    private var pauseContinuation: CheckedContinuation<Void, Never>?
+
     init(
         library: PhotoLibrary,
         thumbnailPixelSize: Int = 64,
@@ -103,10 +108,43 @@ actor PhotoScanner {
         self.uniformVarianceCeiling = uniformVarianceCeiling
     }
 
+    // MARK: - Pause / Resume
+
+    func pause() {
+        isPaused = true
+    }
+
+    /// Resume the scan if currently paused. Safe to call when not paused.
+    func resume() {
+        isPaused = false
+        let continuation = pauseContinuation
+        pauseContinuation = nil
+        continuation?.resume()
+    }
+
+    /// Parks the scan loop while `isPaused` is true. Called at each Phase-C
+    /// batch boundary. Returns immediately when not paused.
+    private func awaitResumeIfPaused() async {
+        guard isPaused else { return }
+        await withCheckedContinuation { continuation in
+            // Re-check now that we're actor-isolated inside the continuation
+            // closure; if resume() fired between the outer guard and here, we
+            // must resume immediately rather than trap the continuation.
+            if !isPaused {
+                continuation.resume()
+                return
+            }
+            self.pauseContinuation = continuation
+        }
+    }
+
+    // MARK: - Scan
+
     func scan(
         forceRescan: Bool,
         cache: [String: CachedAsset] = [:],
-        onProgress: @Sendable @escaping (ScanProgress) -> Void
+        onProgress: @Sendable @escaping (ScanProgress) -> Void,
+        onPartialResult: @Sendable @escaping (ScanResult) -> Void = { _ in }
     ) async throws -> ScanResult {
         // Phase A — fetch ---------------------------------------------------
         var progress = ScanProgress(phase: .fetching)
@@ -138,6 +176,9 @@ actor PhotoScanner {
 
         for batch in batches {
             try Task.checkCancellation()
+            await awaitResumeIfPaused()
+            try Task.checkCancellation()
+
             let batchResults = try await classifyBatch(
                 batch,
                 forceRescan: forceRescan,
@@ -148,8 +189,13 @@ actor PhotoScanner {
             progress.blanksFound = classified.reduce(0) { $0 + ($1.isBlank ? 1 : 0) }
             // Live duplicate count — cheap because `cluster` bucket-filters
             // by dimensions first so typical libraries yield small buckets.
-            progress.duplicateGroupsFound = cluster(classified).count
+            let liveClusters = cluster(classified)
+            progress.duplicateGroupsFound = liveClusters.count
             onProgress(progress)
+            // Provide a partial `ScanResult` snapshot so the store can refresh
+            // the UI arrays without waiting for the final completion — this
+            // is what makes "View Results So Far" meaningful while paused.
+            onPartialResult(ScanResult(classifiedAssets: classified, duplicateClusters: liveClusters))
         }
 
         // Phase D — cluster -------------------------------------------------
