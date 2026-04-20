@@ -10,6 +10,9 @@ struct SinglePhotoCollectionView<Icon: View>: View {
     let title: String
     @ViewBuilder let icon: (_ skipAnimation: Bool) -> Icon
     @State var viewModel: SinglePhotoCollectionViewModel
+    /// Called when the user clears or deletes photos. Wrapper views route
+    /// this through `ScanStore.delete(assetIDs:)` so PhotoKit stays in sync.
+    var onDeleteRequest: ([String]) -> Void = { _ in }
 
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -46,6 +49,9 @@ struct SinglePhotoCollectionView<Icon: View>: View {
                     foreground: foreground,
                     background: background,
                     onDelete: {
+                        if let lid = currentPhoto.localIdentifier {
+                            onDeleteRequest([lid])
+                        }
                         viewModel.deletePhoto(currentPhoto)
                     }
                 )
@@ -111,6 +117,16 @@ struct SinglePhotoCollectionView<Icon: View>: View {
 
     private var clearButton: some View {
         Button {
+            // Route the real deletion request up first (IDs of the photos
+            // about to be removed) before the local state mutation so the
+            // identifiers are still available.
+            let idsToDelete: [String] = (viewModel.hasSelection
+                ? viewModel.photos.filter(\.isSelected)
+                : viewModel.photos
+            ).compactMap(\.localIdentifier)
+            if !idsToDelete.isEmpty {
+                onDeleteRequest(idsToDelete)
+            }
             viewModel.clearPhotos()
         } label: {
             Text(viewModel.clearButtonTitle)

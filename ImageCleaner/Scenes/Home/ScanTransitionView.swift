@@ -4,6 +4,7 @@ import CoreText
 struct ScanTransitionView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(ScanStore.self) private var store
     @State private var transition = ScanTransitionViewModel()
     @State private var scanVM = ScanViewModel()
     @State private var hasPerformedInitialEntry = false
@@ -87,6 +88,7 @@ struct ScanTransitionView: View {
             titleVisibility: .visible
         ) {
             Button("Cancel Scan", role: .destructive) {
+                store.cancelScan()
                 scanVM = ScanViewModel()
                 if reduceMotion { transition.jumpToHomeState() }
                 else { transition.animateToHome() }
@@ -126,6 +128,9 @@ struct ScanTransitionView: View {
                 }
             }
         }
+        .onChange(of: store.scanProgress) { _, new in
+            scanVM.syncFromProgress(new)
+        }
     }
 
     // MARK: - Morphing Text
@@ -164,7 +169,7 @@ struct ScanTransitionView: View {
                 guard !isScanning else { return }
                 if reduceMotion { transition.jumpToScanState() }
                 else { transition.animateToScan() }
-                scanVM.startMockScan()
+                scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
             } label: {
                 Text("SCANNING")
                     .font(Font(Self.jostBlackUIFont(size: baseFontSize)))

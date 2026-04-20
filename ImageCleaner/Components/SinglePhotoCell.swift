@@ -11,9 +11,11 @@ struct SinglePhotoCell: View {
 
     var body: some View {
         ZStack(alignment: .topLeading) {
-            Rectangle()
-                .fill(Color.gray.opacity(photo.shade))
-                .frame(height: photo.displayHeight)
+            AssetThumbnailView(
+                localIdentifier: photo.localIdentifier,
+                placeholderShade: photo.shade
+            )
+            .frame(height: photo.displayHeight)
 
             VStack {
                 Spacer()

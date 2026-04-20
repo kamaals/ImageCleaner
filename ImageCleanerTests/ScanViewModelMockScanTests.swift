@@ -1,4 +1,5 @@
 import Testing
+import Foundation
 @testable import ImageCleaner
 
 /// Tests for the async mock-scan flow on `ScanViewModel`.
@@ -47,8 +48,14 @@ struct ScanViewModelMockScanTests {
     @Test func startMockScanEventuallyDiscoversDuplicates() async {
         let vm = ScanViewModel()
         vm.startMockScan()
-        // duplicates start when scannedCount > 2_000; at 60avg/10ms that's ~333ms
-        try? await Task.sleep(for: .milliseconds(800))
+        // Duplicates start when scannedCount > 2_000; at 60 avg/10ms that's
+        // ~333ms, but with parallel Swift Testing jobs the MainActor can be
+        // contended, so allow a generous upper bound and poll rather than
+        // racing a fixed sleep.
+        let deadline = Date().addingTimeInterval(5)
+        while vm.duplicatesFound == 0 && Date() < deadline {
+            try? await Task.sleep(for: .milliseconds(50))
+        }
         #expect(vm.duplicatesFound > 0)
     }
 }

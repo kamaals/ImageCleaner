@@ -4,12 +4,15 @@ import SwiftUI
 /// Represents a single photo within a duplicate group
 struct DuplicateImage: Identifiable, Equatable {
     let id: UUID
+    /// PhotoKit asset identifier when backed by a real photo; `nil` for mocks.
+    let localIdentifier: String?
     let shade: Double // For mock data visualization
     let fileSize: Int64 // Size in bytes
     let createdAt: Date
-    
-    init(id: UUID = UUID(), shade: Double, fileSize: Int64, createdAt: Date = .now) {
+
+    init(id: UUID = UUID(), localIdentifier: String? = nil, shade: Double, fileSize: Int64, createdAt: Date = .now) {
         self.id = id
+        self.localIdentifier = localIdentifier
         self.shade = shade
         self.fileSize = fileSize
         self.createdAt = createdAt

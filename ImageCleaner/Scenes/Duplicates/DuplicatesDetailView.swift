@@ -4,8 +4,9 @@ struct DuplicatesDetailView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
-    
-    @State private var viewModel = DuplicatesViewModel()
+    @Environment(ScanStore.self) private var store
+
+    @State private var viewModel = DuplicatesViewModel(photos: [])
     
     private var foreground: Color { colorScheme == .dark ? .white : .black }
     private var background: Color { colorScheme == .dark ? .black : .white }
@@ -28,11 +29,15 @@ struct DuplicatesDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
+            viewModel.photos = store.duplicates
             if reduceMotion {
                 viewModel.jumpToVisible()
             } else {
                 viewModel.animateEntrance()
             }
+        }
+        .onChange(of: store.duplicates) { _, new in
+            viewModel.photos = new
         }
         .sheet(item: $viewModel.selectedPhotoForComparison) { photo in
             // Get the current state of the photo from view model
@@ -42,6 +47,9 @@ struct DuplicatesDetailView: View {
                     foreground: foreground,
                     background: background,
                     onDelete: { image in
+                        if let lid = image.localIdentifier {
+                            Task { await store.delete(assetIDs: [lid]) }
+                        }
                         viewModel.deleteImage(image, from: currentPhoto)
                     }
                 )
@@ -113,6 +121,22 @@ struct DuplicatesDetailView: View {
     
     private var clearButton: some View {
         Button {
+            // When some photos are selected, we delete only those; otherwise
+            // iOS gets every image in every duplicate group.
+            let idsToDelete: [String]
+            if viewModel.hasSelection {
+                idsToDelete = viewModel.photos
+                    .filter(\.isSelected)
+                    .flatMap(\.images)
+                    .compactMap(\.localIdentifier)
+            } else {
+                idsToDelete = viewModel.photos
+                    .flatMap(\.images)
+                    .compactMap(\.localIdentifier)
+            }
+            if !idsToDelete.isEmpty {
+                Task { await store.delete(assetIDs: idsToDelete) }
+            }
             viewModel.clearDuplicates()
         } label: {
             Text(viewModel.clearButtonTitle)

@@ -64,13 +64,16 @@ struct SinglePhotoViewerSheet<Icon: View>: View {
     // MARK: - Image
 
     private var imageSection: some View {
-        Rectangle()
-            .fill(Color.gray.opacity(photo.shade))
-            .aspectRatio(0.75, contentMode: .fit)
-            .clipShape(.rect(cornerRadius: 12))
-            .frame(maxWidth: 260)
-            .frame(maxWidth: .infinity)
-            .accessibilityLabel("Photo thumbnail")
+        AssetThumbnailView(
+            localIdentifier: photo.localIdentifier,
+            placeholderShade: photo.shade,
+            pixelSize: 512
+        )
+        .aspectRatio(0.75, contentMode: .fit)
+        .clipShape(.rect(cornerRadius: 12))
+        .frame(maxWidth: 260)
+        .frame(maxWidth: .infinity)
+        .accessibilityLabel("Photo thumbnail")
     }
 
     // MARK: - Delete Button

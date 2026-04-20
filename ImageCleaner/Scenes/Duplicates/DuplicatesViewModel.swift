@@ -3,10 +3,14 @@ import SwiftUI
 @Observable @MainActor
 final class DuplicatesViewModel {
     // MARK: - State
-    
-    var photos: [DuplicatePhoto] = DuplicatePhoto.mockData
+
+    var photos: [DuplicatePhoto]
     var selectAll = false
     var selectedPhotoForComparison: DuplicatePhoto?
+
+    init(photos: [DuplicatePhoto] = DuplicatePhoto.mockData) {
+        self.photos = photos
+    }
     
     // Animation state
     var headerVisible = false

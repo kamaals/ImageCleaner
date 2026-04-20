@@ -3,9 +3,45 @@ import SwiftUI
 struct ResultsView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(ScanStore.self) private var store
 
     private var foreground: Color { colorScheme == .dark ? .white : .black }
     private var background: Color { colorScheme == .dark ? .black : .white }
+
+    private var totalItemsFound: Int {
+        guard let session = store.latestSession else { return 0 }
+        return session.duplicateGroupCount + session.screenshotCount + session.blankCount
+    }
+
+    private var reclaimableText: String {
+        let bytes = store.latestSession?.reclaimableBytes ?? 0
+        return ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
+
+    private var duplicateGroupCount: Int { store.latestSession?.duplicateGroupCount ?? 0 }
+    private var screenshotCount: Int { store.latestSession?.screenshotCount ?? 0 }
+    private var blankCount: Int { store.latestSession?.blankCount ?? 0 }
+
+    private var duplicateBytes: Int64 {
+        store.duplicates.reduce(0) { running, group in
+            let members = group.images
+            let largest = members.max(by: { $0.fileSize < $1.fileSize })?.fileSize ?? 0
+            let sum = members.reduce(0) { $0 + $1.fileSize }
+            return running + (sum - largest)
+        }
+    }
+
+    private var screenshotBytes: Int64 {
+        store.screenshots.reduce(0) { $0 + $1.fileSize }
+    }
+
+    private var blankBytes: Int64 {
+        store.blanks.reduce(0) { $0 + $1.fileSize }
+    }
+
+    private func formatted(_ bytes: Int64) -> String {
+        ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)
+    }
 
     // Animation state - row visibility
     @State private var headerVisible = false
@@ -48,7 +84,7 @@ struct ResultsView: View {
                         .foregroundStyle(foreground)
                         .fixedSize()
 
-                    Text("87 items found")
+                    Text("\(totalItemsFound) items found")
                         .font(AppFont.jost(size: 16, weight: 400))
                         .foregroundStyle(AppPalette.secondaryText)
                         .fixedSize()
@@ -62,7 +98,7 @@ struct ResultsView: View {
             // Reclaimable Space value
             HStack {
                 Spacer().frame(maxWidth: 4)
-                Text("376.4 MB")
+                Text(reclaimableText)
                     .font(AppFont.jost(size: 48, weight: 200))
                     .foregroundStyle(foreground)
                     .fixedSize()
@@ -83,8 +119,8 @@ struct ResultsView: View {
                         .id(duplicatesIconID)
                         .opacity(duplicatesIconReady ? 1 : 0),
                         title: "Duplicate Photos",
-                        itemCount: 35,
-                        size: "167.9 MB",
+                        itemCount: duplicateGroupCount,
+                        size: formatted(duplicateBytes),
                         foreground: foreground
                     )
                 }
@@ -101,8 +137,8 @@ struct ResultsView: View {
                         .id(screenshotsIconID)
                         .opacity(screenshotsIconReady ? 1 : 0),
                         title: "Screenshots",
-                        itemCount: 67,
-                        size: "143.9 MB",
+                        itemCount: screenshotCount,
+                        size: formatted(screenshotBytes),
                         foreground: foreground
                     )
                 }
@@ -119,8 +155,8 @@ struct ResultsView: View {
                         .id(blankPhotosIconID)
                         .opacity(blankPhotosIconReady ? 1 : 0),
                         title: "Blank Photos",
-                        itemCount: 7,
-                        size: "23.8 MB",
+                        itemCount: blankCount,
+                        size: formatted(blankBytes),
                         foreground: foreground
                     )
                 }

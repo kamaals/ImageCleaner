@@ -10,11 +10,12 @@ struct DuplicateImageCard: View {
         VStack(spacing: 8) {
             // Image with delete button
             ZStack(alignment: .topTrailing) {
-                // Image placeholder
-                Rectangle()
-                    .fill(Color.gray.opacity(image.shade))
-                    .aspectRatio(0.75, contentMode: .fit)
-                    .clipShape(.rect(cornerRadius: 8))
+                AssetThumbnailView(
+                    localIdentifier: image.localIdentifier,
+                    placeholderShade: image.shade
+                )
+                .aspectRatio(0.75, contentMode: .fit)
+                .clipShape(.rect(cornerRadius: 8))
 
                 // Delete button (only show if can delete)
                 if canDelete {

@@ -21,6 +21,8 @@ struct CheckboxToggleStyle: ToggleStyle {
 
                 configuration.label
             }
+            .contentShape(Rectangle())
+            .frame(minHeight: 44, alignment: .leading)
         }
         .buttonStyle(.plain)
         .accessibilityAddTraits(.isToggle)

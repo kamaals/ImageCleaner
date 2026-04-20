@@ -5,6 +5,8 @@ import SwiftUI
 /// Blank Photos and Screenshots screens where each cell is exactly one image.
 struct SinglePhoto: Identifiable, Equatable {
     let id: UUID
+    /// PhotoKit asset identifier when backed by a real photo; `nil` for mocks.
+    let localIdentifier: String?
     let shade: Double
     let displayHeight: CGFloat
     let fileSize: Int64
@@ -13,6 +15,7 @@ struct SinglePhoto: Identifiable, Equatable {
 
     init(
         id: UUID = UUID(),
+        localIdentifier: String? = nil,
         shade: Double,
         displayHeight: CGFloat,
         fileSize: Int64,
@@ -20,6 +23,7 @@ struct SinglePhoto: Identifiable, Equatable {
         isSelected: Bool = false
     ) {
         self.id = id
+        self.localIdentifier = localIdentifier
         self.shade = shade
         self.displayHeight = displayHeight
         self.fileSize = fileSize

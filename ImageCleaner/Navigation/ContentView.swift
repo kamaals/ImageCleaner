@@ -20,7 +20,7 @@ struct ContentView: View {
                         ScreenshotsDetailView()
                     case .blankPhotos:
                         BlankPhotosDetailView()
-                    case .settings:
+                    case .settings: 
                         SettingsView()
                     }
                 }

@@ -8,10 +8,11 @@ struct DuplicatePhotoCell: View {
     
     var body: some View {
         ZStack(alignment: .topLeading) {
-            // Photo placeholder
-            Rectangle()
-                .fill(Color.gray.opacity(photo.primaryShade))
-                .frame(height: photo.displayHeight)
+            AssetThumbnailView(
+                localIdentifier: photo.images.first?.localIdentifier,
+                placeholderShade: photo.primaryShade
+            )
+            .frame(height: photo.displayHeight)
             
             // Duplicate count badge — opaque pill so the count reads cleanly
             // over both light placeholders and photo thumbnails.

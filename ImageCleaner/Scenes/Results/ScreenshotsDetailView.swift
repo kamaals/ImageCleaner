@@ -1,7 +1,8 @@
 import SwiftUI
 
 struct ScreenshotsDetailView: View {
-    @State private var viewModel = SinglePhotoCollectionViewModel(photos: SinglePhoto.screenshotMockData)
+    @Environment(ScanStore.self) private var store
+    @State private var viewModel = SinglePhotoCollectionViewModel()
 
     var body: some View {
         SinglePhotoCollectionView(
@@ -9,14 +10,16 @@ struct ScreenshotsDetailView: View {
             icon: { skipAnimation in
                 ScanLinesIcon(skipAnimation: skipAnimation)
             },
-            viewModel: viewModel
+            viewModel: viewModel,
+            onDeleteRequest: { ids in
+                Task { await store.delete(assetIDs: ids) }
+            }
         )
-    }
-}
-
-#Preview {
-    NavigationStack {
-        ScreenshotsDetailView()
-            .environment(AppTheme())
+        .onAppear {
+            viewModel.photos = store.screenshots
+        }
+        .onChange(of: store.screenshots) { _, new in
+            viewModel.photos = new
+        }
     }
 }
