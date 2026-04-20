@@ -186,6 +186,19 @@ struct DuplicatesDetailView: View {
             .padding(.top, 24)
             .padding(.bottom, 100)
         }
+        // Fade the top edge so cells dissolve into the background as they
+        // scroll under the Clear button, instead of clipping at a hard line.
+        .mask(alignment: .top) {
+            VStack(spacing: 0) {
+                LinearGradient(
+                    colors: [.clear, .black],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: 24)
+                Color.black
+            }
+        }
         .opacity(viewModel.gridVisible ? 1 : 0)
         .offset(y: viewModel.gridVisible ? 0 : 30)
     }

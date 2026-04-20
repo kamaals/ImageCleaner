@@ -196,7 +196,22 @@ struct ScanTransitionView: View {
             // Jost-Black's right-side bearing doesn't leave a visible gap after the N.
             .padding(.trailing, isScanning ? 0 : -Self.trailingOpticalBleed)
         }
-        .frame(height: Self.morphingTextContainerHeight)
+        // Shrink the container along with the text so scan-state doesn't
+        // reserve ~100pt of empty space below "SCANNING". At scan-state the
+        // rendered text is 40pt × 1.05, at home-state it's the full preferred
+        // size — interpolate via the same textScale the text itself uses.
+        .frame(height: morphingContainerHeight)
+    }
+
+    /// Interpolated height of the morphing-text container. Tracks the text's
+    /// current scale so the box collapses tightly around the small "SCANNING"
+    /// in scan state (~42pt) but still reserves full room for SCAN at home.
+    private var morphingContainerHeight: CGFloat {
+        let homeHeight = Self.preferredFontSize * 1.05
+        let scanHeight: CGFloat = 42
+        let vmRange = 1.0 - ScanTransitionViewModel.targetScale
+        let progress = vmRange > 0 ? (1.0 - transition.textScale) / vmRange : 0
+        return homeHeight + (scanHeight - homeHeight) * progress
     }
 
     // MARK: - Home Buttons
