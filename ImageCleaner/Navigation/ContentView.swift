@@ -15,12 +15,14 @@ struct ContentView: View {
                     case .results:
                         ResultsView()
                     case .duplicates:
-                        DuplicatesDetailView()
+                        DuplicatesDetailView(kind: .exact)
+                    case .similars:
+                        DuplicatesDetailView(kind: .similar)
                     case .screenshots:
                         ScreenshotsDetailView()
                     case .blankPhotos:
                         BlankPhotosDetailView()
-                    case .settings: 
+                    case .settings:
                         SettingsView()
                     }
                 }

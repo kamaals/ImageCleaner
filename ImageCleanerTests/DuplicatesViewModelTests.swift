@@ -224,6 +224,40 @@ struct DuplicatesViewModelTests {
         #expect(vm.currentPhoto(for: UUID()) == nil)
     }
 
+    /// Regression: ScanStore.reloadFromPersisted() rebuilds DuplicatePhoto
+    /// with a fresh UUID after every delete. A UUID-only lookup blanks the
+    /// open sheet; the anchor set must keep it pointed at the same group.
+    @Test func currentPhotoSurvivesUUIDChurnWhenLocalIdentifiersOverlap() {
+        let originalImages = [
+            DuplicateImage(localIdentifier: "photo-a", shade: 0.5, fileSize: 100),
+            DuplicateImage(localIdentifier: "photo-b", shade: 0.5, fileSize: 100),
+            DuplicateImage(localIdentifier: "photo-c", shade: 0.5, fileSize: 100),
+        ]
+        let original = DuplicatePhoto(aspectRatio: 1.0, images: originalImages)
+        let vm = makeVM(photos: [original])
+        vm.openComparison(for: original)
+
+        // Simulate a store reload: same group content, brand-new UUIDs on
+        // both the photo and every DuplicateImage.
+        let reloaded = DuplicatePhoto(
+            id: UUID(),
+            aspectRatio: 1.0,
+            images: originalImages.map {
+                DuplicateImage(
+                    id: UUID(),
+                    localIdentifier: $0.localIdentifier,
+                    shade: $0.shade,
+                    fileSize: $0.fileSize
+                )
+            }
+        )
+        vm.photos = [reloaded]
+
+        let found = vm.currentPhoto(for: original.id)
+        #expect(found != nil, "anchor lookup should find the group after reload")
+        #expect(found?.id == reloaded.id)
+    }
+
     // MARK: - Animation jump
 
     @Test func jumpToVisibleSetsAllAnimationFlagsTrue() {

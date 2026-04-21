@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 import SwiftUI
 import Photos
+import os
 
 /// Top-level store that:
 ///   1. loads the last persisted `ScanSession` on init so "View Last Results"
@@ -24,7 +25,13 @@ final class ScanStore {
 
     private(set) var authorizationStatus: PHAuthorizationStatus = .notDetermined
     private(set) var latestSession: ScanSession?
+    /// Near-pixel-identical duplicate groups. Safe to headline as "delete the
+    /// redundant copy." See `similars` for the looser review-required tier.
     private(set) var duplicates: [DuplicatePhoto] = []
+    /// Same-moment / burst-alternate / reshoot groups. Visually close but not
+    /// semantically duplicate — surface with explicit "review before deleting"
+    /// framing, never auto-suggest.
+    private(set) var similars: [DuplicatePhoto] = []
     private(set) var blanks: [SinglePhoto] = []
     private(set) var screenshots: [SinglePhoto] = []
     private(set) var scanProgress: ScanProgress = ScanProgress()
@@ -57,7 +64,14 @@ final class ScanStore {
         latestSession = (try? modelContext.fetch(sessionDescriptor))?.first
 
         let assetDescriptor = FetchDescriptor<ScannedAsset>()
-        let assets = (try? modelContext.fetch(assetDescriptor)) ?? []
+        let assets: [ScannedAsset]
+        do {
+            assets = try modelContext.fetch(assetDescriptor)
+        } catch {
+            Self.log.error("reloadFromPersisted asset fetch failed: \(error.localizedDescription, privacy: .public)")
+            assets = []
+        }
+        Self.log.notice("reloadFromPersisted assets.count=\(assets.count)")
 
         screenshots = assets
             .filter(\.isScreenshot)
@@ -73,9 +87,11 @@ final class ScanStore {
             sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
         )
         let groups = (try? modelContext.fetch(groupDescriptor)) ?? []
-        duplicates = groups
-            .filter { $0.members.count >= 2 }
-            .map(ScanStore.makeDuplicatePhoto)
+        Self.log.notice("reloadFromPersisted groups.count=\(groups.count) memberCounts=\(groups.map(\.members.count), privacy: .public)")
+        let viable = groups.filter { $0.members.count >= 2 }
+        duplicates = viable.filter { $0.kind == .exact }.map(ScanStore.makeDuplicatePhoto)
+        similars = viable.filter { $0.kind == .similar }.map(ScanStore.makeDuplicatePhoto)
+        Self.log.notice("reloadFromPersisted result dup:\(self.duplicates.count) similar:\(self.similars.count) shots:\(self.screenshots.count) blanks:\(self.blanks.count)")
     }
 
     // MARK: - Scan
@@ -172,7 +188,25 @@ final class ScanStore {
     func applyPartialResult(_ partial: ScanResult) {
         let byID = Dictionary(uniqueKeysWithValues: partial.classifiedAssets.map { ($0.localIdentifier, $0) })
 
-        duplicates = partial.duplicateClusters.compactMap { cluster -> DuplicatePhoto? in
+        duplicates = Self.buildPhotos(from: partial.exactDuplicateClusters, byID: byID)
+        similars = Self.buildPhotos(from: partial.similarClusters, byID: byID)
+
+        let screenshotsClassified = partial.classifiedAssets.filter(\.isScreenshot)
+        screenshots = screenshotsClassified
+            .sorted { $0.createdAt > $1.createdAt }
+            .map(ScanStore.makeSinglePhoto(fromClassified:))
+
+        let blanksClassified = partial.classifiedAssets.filter { $0.isBlank && !$0.isScreenshot }
+        blanks = blanksClassified
+            .sorted { $0.createdAt > $1.createdAt }
+            .map(ScanStore.makeSinglePhoto(fromClassified:))
+    }
+
+    private static func buildPhotos(
+        from clusters: [[String]],
+        byID: [String: ClassifiedAsset]
+    ) -> [DuplicatePhoto] {
+        clusters.compactMap { cluster -> DuplicatePhoto? in
             let members = cluster.compactMap { byID[$0] }
             guard members.count >= 2 else { return nil }
             let primary = members.first!
@@ -194,16 +228,6 @@ final class ScanStore {
                 isSelected: false
             )
         }
-
-        let screenshotsClassified = partial.classifiedAssets.filter(\.isScreenshot)
-        screenshots = screenshotsClassified
-            .sorted { $0.createdAt > $1.createdAt }
-            .map(ScanStore.makeSinglePhoto(fromClassified:))
-
-        let blanksClassified = partial.classifiedAssets.filter { $0.isBlank && !$0.isScreenshot }
-        blanks = blanksClassified
-            .sorted { $0.createdAt > $1.createdAt }
-            .map(ScanStore.makeSinglePhoto(fromClassified:))
     }
 
     private static func makeSinglePhoto(fromClassified asset: ClassifiedAsset) -> SinglePhoto {
@@ -246,12 +270,17 @@ final class ScanStore {
         guard !forceRescan else { return [:] }
         let descriptor = FetchDescriptor<ScannedAsset>()
         let rows = (try? modelContext.fetch(descriptor)) ?? []
-        return Dictionary(uniqueKeysWithValues: rows.map { row in
-            (row.localIdentifier, CachedAsset(
+        // Skip pre-pHash rows so they're re-hashed on the next scan rather
+        // than reused with pHash=0 (which would make the exact-duplicate pass
+        // effectively dHash-only for those assets).
+        return Dictionary(uniqueKeysWithValues: rows.compactMap { row in
+            guard row.pHashUnsigned != 0 else { return nil }
+            return (row.localIdentifier, CachedAsset(
                 localIdentifier: row.localIdentifier,
                 pixelWidth: row.pixelWidth,
                 pixelHeight: row.pixelHeight,
                 dHash: row.dHashUnsigned,
+                pHash: row.pHashUnsigned,
                 brightness: row.brightness,
                 variance: row.variance
             ))
@@ -282,6 +311,7 @@ final class ScanStore {
             let row: ScannedAsset
             if let existing = existingByID[classified.localIdentifier] {
                 existing.dHashUnsigned = classified.dHash
+                existing.pHashUnsigned = classified.pHash
                 existing.pixelWidth = classified.pixelWidth
                 existing.pixelHeight = classified.pixelHeight
                 existing.fileSize = classified.fileSize
@@ -290,12 +320,14 @@ final class ScanStore {
                 existing.isBlank = classified.isBlank
                 existing.brightness = classified.brightness
                 existing.variance = classified.variance
+                existing.burstIdentifier = classified.burstIdentifier
                 existing.duplicateGroup = nil // re-assigned below
                 row = existing
             } else {
                 row = ScannedAsset(
                     localIdentifier: classified.localIdentifier,
                     dHash: classified.dHash,
+                    pHash: classified.pHash,
                     pixelWidth: classified.pixelWidth,
                     pixelHeight: classified.pixelHeight,
                     fileSize: classified.fileSize,
@@ -303,31 +335,39 @@ final class ScanStore {
                     isScreenshot: classified.isScreenshot,
                     isBlank: classified.isBlank,
                     brightness: classified.brightness,
-                    variance: classified.variance
+                    variance: classified.variance,
+                    burstIdentifier: classified.burstIdentifier
                 )
                 modelContext.insert(row)
             }
             assetByID[classified.localIdentifier] = row
         }
 
-        // 3. Create duplicate group records linking members.
-        for cluster in result.duplicateClusters {
-            let members = cluster.compactMap { assetByID[$0] }
-            guard members.count >= 2 else { continue }
-            let group = DuplicateGroupRecord(
-                hashBucket: members.first?.dHashUnsigned ?? 0,
-                members: members
-            )
-            modelContext.insert(group)
-            for m in members { m.duplicateGroup = group }
+        // 3. Create duplicate group records for both tiers.
+        for (clusters, kind) in [
+            (result.exactDuplicateClusters, DuplicateGroupKind.exact),
+            (result.similarClusters, DuplicateGroupKind.similar),
+        ] {
+            for cluster in clusters {
+                let members = cluster.compactMap { assetByID[$0] }
+                guard members.count >= 2 else { continue }
+                let group = DuplicateGroupRecord(
+                    hashBucket: members.first?.dHashUnsigned ?? 0,
+                    kind: kind,
+                    members: members
+                )
+                modelContext.insert(group)
+                for m in members { m.duplicateGroup = group }
+            }
         }
 
-        // 4. Persist the session snapshot.
+        // 4. Persist the session snapshot. `duplicateGroupCount` counts only
+        // exact duplicates — that's what headlines as reclaimable storage.
         let session = ScanSession(
             startedAt: Date(),
             completedAt: Date(),
             totalScanned: result.classifiedAssets.count,
-            duplicateGroupCount: result.duplicateClusters.count,
+            duplicateGroupCount: result.exactDuplicateClusters.count,
             screenshotCount: result.classifiedAssets.count(where: \.isScreenshot),
             blankCount: result.classifiedAssets.count { $0.isBlank && !$0.isScreenshot },
             reclaimableBytes: result.reclaimableBytes
@@ -337,26 +377,114 @@ final class ScanStore {
         try? modelContext.save()
     }
 
+    // MARK: - Testing hooks
+
+    #if DEBUG
+    /// Exposes `persist(result:)` to unit tests that need to seed the
+    /// SwiftData store via the same path the real scan pipeline uses.
+    func persistForTesting(result: ScanResult) {
+        persist(result: result)
+    }
+    #endif
+
     // MARK: - Delete
 
     /// Delete the given assets from the Photos library (iOS prompts the user)
     /// and, on success, prune our cached rows + update the current session.
     func delete(assetIDs: [String]) async {
         guard !assetIDs.isEmpty else { return }
+        let before = (duplicates.count, screenshots.count, blanks.count)
+        let countsBefore = persistenceCounts()
+        Self.log.notice("delete() requested ids=\(assetIDs, privacy: .public) uiBefore=dup:\(before.0)/shots:\(before.1)/blanks:\(before.2) persistBefore=assets:\(countsBefore.assets)/groups:\(countsBefore.groups)/sessions:\(countsBefore.sessions)")
         do {
             try await library.deleteAssets(localIdentifiers: assetIDs)
+            let countsAfterPhotoKit = persistenceCounts()
+            Self.log.notice("delete() PhotoKit ok. persistAfterPhotoKit=assets:\(countsAfterPhotoKit.assets)/groups:\(countsAfterPhotoKit.groups)/sessions:\(countsAfterPhotoKit.sessions)")
             pruneDeleted(assetIDs: Set(assetIDs))
-            reloadFromPersisted()
+            let countsAfterPrune = persistenceCounts()
+            Self.log.notice("delete() after pruneDeleted persist=assets:\(countsAfterPrune.assets)/groups:\(countsAfterPrune.groups)/sessions:\(countsAfterPrune.sessions)")
+
+            // The UI arrays can be populated by `applyPartialResult` during a
+            // live scan before `persist` has ever run, so the persistent store
+            // can legitimately be empty while the UI is full. Reloading from
+            // an empty store in that case wipes the in-memory view of the
+            // scan; mutate the arrays in-place instead.
+            if countsAfterPrune.assets == 0 && countsAfterPrune.groups == 0 {
+                Self.log.notice("delete() persistence empty → pruning in-memory arrays directly")
+                pruneInMemoryArrays(assetIDs: Set(assetIDs))
+            } else {
+                reloadFromPersisted()
+            }
+            let after = (duplicates.count, screenshots.count, blanks.count)
+            Self.log.notice("delete() finished uiAfter=dup:\(after.0)/shots:\(after.1)/blanks:\(after.2)")
+            if before != (0, 0, 0), after == (0, 0, 0) {
+                Self.log.error("⚠️ delete() wiped all categories — before=\(before.0)/\(before.1)/\(before.2) after=0/0/0 ids=\(assetIDs, privacy: .public) persistAfter=assets:\(countsAfterPrune.assets)/groups:\(countsAfterPrune.groups)")
+            }
         } catch PhotoLibraryError.deletionCancelled {
-            // no-op: user backed out.
+            Self.log.notice("delete() cancelled by user")
         } catch {
+            Self.log.error("delete() failed: \(error.localizedDescription, privacy: .public)")
             lastError = error.localizedDescription
         }
     }
 
+    /// Counts rows directly in the persistent store (not via the cached UI
+    /// arrays), so logs can distinguish "rows really were deleted" from
+    /// "fetch returned empty for some other reason".
+    private func persistenceCounts() -> (assets: Int, groups: Int, sessions: Int) {
+        let assets = (try? modelContext.fetchCount(FetchDescriptor<ScannedAsset>())) ?? -1
+        let groups = (try? modelContext.fetchCount(FetchDescriptor<DuplicateGroupRecord>())) ?? -1
+        let sessions = (try? modelContext.fetchCount(FetchDescriptor<ScanSession>())) ?? -1
+        return (assets, groups, sessions)
+    }
+
+    /// Fallback path when a delete happens against a UI populated only by
+    /// `applyPartialResult` (no persisted rows yet). Strips deleted asset
+    /// ids out of the live arrays, dropping any duplicate group that falls
+    /// below 2 remaining members.
+    private func pruneInMemoryArrays(assetIDs: Set<String>) {
+        screenshots.removeAll { photo in
+            guard let lid = photo.localIdentifier else { return false }
+            return assetIDs.contains(lid)
+        }
+        blanks.removeAll { photo in
+            guard let lid = photo.localIdentifier else { return false }
+            return assetIDs.contains(lid)
+        }
+        duplicates = Self.prunedGroups(duplicates, assetIDs: assetIDs)
+        similars = Self.prunedGroups(similars, assetIDs: assetIDs)
+    }
+
+    private static func prunedGroups(
+        _ groups: [DuplicatePhoto], assetIDs: Set<String>
+    ) -> [DuplicatePhoto] {
+        groups.compactMap { group in
+            let surviving = group.images.filter { image in
+                guard let lid = image.localIdentifier else { return true }
+                return !assetIDs.contains(lid)
+            }
+            guard surviving.count >= 2 else { return nil }
+            return DuplicatePhoto(
+                id: group.id,
+                aspectRatio: group.aspectRatio,
+                images: surviving,
+                isSelected: group.isSelected
+            )
+        }
+    }
+
+    private static let log = Logger(subsystem: "me.kamaal.ImageCleaner", category: "ScanStore")
+
     private func pruneDeleted(assetIDs: Set<String>) {
         let descriptor = FetchDescriptor<ScannedAsset>()
-        let rows = (try? modelContext.fetch(descriptor)) ?? []
+        let rows: [ScannedAsset]
+        do {
+            rows = try modelContext.fetch(descriptor)
+        } catch {
+            Self.log.error("pruneDeleted fetch failed: \(error.localizedDescription, privacy: .public)")
+            rows = []
+        }
+        Self.log.notice("pruneDeleted start assetIDs=\(assetIDs, privacy: .public) totalRows=\(rows.count)")
 
         var removedBytes: Int64 = 0
         var removedDupGroups = 0
@@ -372,9 +500,12 @@ final class ScanStore {
 
         // Dissolve duplicate groups whose member count drops below 2.
         let groups = (try? modelContext.fetch(FetchDescriptor<DuplicateGroupRecord>())) ?? []
+        Self.log.notice("pruneDeleted groups.count=\(groups.count)")
         for group in groups {
+            let memberCount = group.members.count
             let remaining = group.members.filter { !assetIDs.contains($0.localIdentifier) }
             if remaining.count < 2 {
+                Self.log.notice("pruneDeleted dissolve group members=\(memberCount) remaining=\(remaining.count)")
                 modelContext.delete(group)
                 if group.members.count >= 2 {
                     removedDupGroups += 1

@@ -1,17 +1,40 @@
 import SwiftUI
 
 struct DuplicatesDetailView: View {
+    /// Which tier this instance renders. The view binds to either
+    /// `store.duplicates` (exact) or `store.similars` (review-required) and
+    /// tweaks header + empty-state copy accordingly.
+    var kind: DuplicateGroupKind = .exact
+
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(ScanStore.self) private var store
 
     @State private var viewModel = DuplicatesViewModel(photos: [])
-    
+
     private var foreground: Color { colorScheme == .dark ? .white : .black }
     private var background: Color { colorScheme == .dark ? .black : .white }
-    
+
     private let offScreenX: CGFloat = -60
+
+    private var sourceGroups: [DuplicatePhoto] {
+        kind == .exact ? store.duplicates : store.similars
+    }
+
+    private var headerTitle: String {
+        kind == .exact ? "Duplicate Photos" : "Similar Photos"
+    }
+
+    private var emptyStateTitle: String {
+        kind == .exact ? "No duplicates found" : "No similar photos"
+    }
+
+    private var emptyStateSubtitle: String {
+        kind == .exact
+            ? "Your library is all cleaned up."
+            : "Nothing flagged for review."
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -29,33 +52,40 @@ struct DuplicatesDetailView: View {
         .toolbarBackground(.hidden, for: .navigationBar)
         .navigationBarTitleDisplayMode(.inline)
         .onAppear {
-            viewModel.photos = store.duplicates
+            viewModel.photos = sourceGroups
             if reduceMotion {
                 viewModel.jumpToVisible()
             } else {
                 viewModel.animateEntrance()
             }
         }
-        .onChange(of: store.duplicates) { _, new in
+        .onChange(of: sourceGroups) { _, new in
             viewModel.photos = new
         }
         .sheet(item: $viewModel.selectedPhotoForComparison) { photo in
-            // Get the current state of the photo from view model
-            if let currentPhoto = viewModel.currentPhoto(for: photo.id) {
-                DuplicateCompareSheet(
-                    photo: currentPhoto,
-                    foreground: foreground,
-                    background: background,
-                    onDelete: { image in
-                        if let lid = image.localIdentifier {
-                            Task { await store.delete(assetIDs: [lid]) }
+            // The detents live outside the `if let` so a transient lookup
+            // miss (e.g. during a delete-triggered reload) can't leave the
+            // sheet detent-less and full-screen — that was what "covered" the
+            // grid and made it look like everything had been wiped.
+            Group {
+                if let currentPhoto = viewModel.currentPhoto(for: photo.id) {
+                    DuplicateCompareSheet(
+                        photo: currentPhoto,
+                        foreground: foreground,
+                        background: background,
+                        onDelete: { image in
+                            if let lid = image.localIdentifier {
+                                Task { await store.delete(assetIDs: [lid]) }
+                            }
+                            viewModel.deleteImage(image, from: currentPhoto)
                         }
-                        viewModel.deleteImage(image, from: currentPhoto)
-                    }
-                )
-                .presentationDetents([.medium])
-                .presentationDragIndicator(.visible)
+                    )
+                } else {
+                    Color.clear
+                }
             }
+            .presentationDetents([.medium])
+            .presentationDragIndicator(.visible)
         }
     }
     
@@ -82,7 +112,7 @@ struct DuplicatesDetailView: View {
             .opacity(viewModel.headerIconReady ? 1 : 0)
             
             VStack(alignment: .leading, spacing: 4) {
-                Text("Duplicate Photos")
+                Text(headerTitle)
                     .font(AppFont.jost(size: 28, weight: 500))
                     .foregroundStyle(foreground)
                     .fixedSize()
@@ -165,26 +195,30 @@ struct DuplicatesDetailView: View {
     
     private var gridSection: some View {
         ScrollView {
-            PinterestGrid(
-                items: viewModel.photos,
-                columns: 2,
-                spacing: 12,
-                aspectRatio: { $0.aspectRatio }
-            ) { photo in
-                if let binding = viewModel.binding(for: photo.id) {
-                    DuplicatePhotoCell(
-                        photo: binding,
-                        foreground: foreground,
-                        isInSelectionMode: viewModel.isInSelectionMode,
-                        onTap: {
-                            viewModel.openComparison(for: photo)
-                        }
-                    )
+            if viewModel.photos.isEmpty {
+                emptyState
+            } else {
+                PinterestGrid(
+                    items: viewModel.photos,
+                    columns: 2,
+                    spacing: 12,
+                    aspectRatio: { $0.aspectRatio }
+                ) { photo in
+                    if let binding = viewModel.binding(for: photo.id) {
+                        DuplicatePhotoCell(
+                            photo: binding,
+                            foreground: foreground,
+                            isInSelectionMode: viewModel.isInSelectionMode,
+                            onTap: {
+                                viewModel.openComparison(for: photo)
+                            }
+                        )
+                    }
                 }
+                .padding(.horizontal, AppLayout.horizontalInset)
+                .padding(.top, 24)
+                .padding(.bottom, 100)
             }
-            .padding(.horizontal, AppLayout.horizontalInset)
-            .padding(.top, 24)
-            .padding(.bottom, 100)
         }
         // Fade the top edge so cells dissolve into the background as they
         // scroll under the Clear button, instead of clipping at a hard line.
@@ -201,6 +235,22 @@ struct DuplicatesDetailView: View {
         }
         .opacity(viewModel.gridVisible ? 1 : 0)
         .offset(y: viewModel.gridVisible ? 0 : 30)
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Text("🎉")
+                .font(.system(size: 56))
+            Text(emptyStateTitle)
+                .font(AppFont.jost(size: 22, weight: 500))
+                .foregroundStyle(foreground)
+            Text(emptyStateSubtitle)
+                .font(AppFont.jost(size: 16, weight: 400))
+                .foregroundStyle(AppPalette.secondaryText)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 96)
+        .padding(.horizontal, AppLayout.horizontalInset)
     }
 }
 

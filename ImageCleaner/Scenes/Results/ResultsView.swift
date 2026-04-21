@@ -11,8 +11,9 @@ struct ResultsView: View {
     private var totalItemsFound: Int {
         // Derive from the live arrays so the header stays in sync with
         // mid-scan partial results (when there's no `ScanSession` yet) as
-        // well as completed scans.
-        duplicateGroupCount + screenshotCount + blankCount
+        // well as completed scans. Similar groups are counted but their bytes
+        // are NOT added to reclaimable storage — they need human review.
+        duplicateGroupCount + similarGroupCount + screenshotCount + blankCount
     }
 
     private var reclaimableText: String {
@@ -21,6 +22,7 @@ struct ResultsView: View {
     }
 
     private var duplicateGroupCount: Int { store.duplicates.count }
+    private var similarGroupCount: Int { store.similars.count }
     private var screenshotCount: Int { store.screenshots.count }
     private var blankCount: Int { store.blanks.count }
 
@@ -49,18 +51,21 @@ struct ResultsView: View {
     @State private var headerVisible = false
     @State private var valueVisible = false
     @State private var duplicatesVisible = false
+    @State private var similarsVisible = false
     @State private var screenshotsVisible = false
     @State private var blankPhotosVisible = false
 
     // Animation state - icon IDs (changing ID forces view recreation and re-triggers onAppear)
     @State private var headerIconID = UUID()
     @State private var duplicatesIconID = UUID()
+    @State private var similarsIconID = UUID()
     @State private var screenshotsIconID = UUID()
     @State private var blankPhotosIconID = UUID()
-    
+
     // Track if icons should animate (false = skip, true = animate)
     @State private var headerIconReady = false
     @State private var duplicatesIconReady = false
+    @State private var similarsIconReady = false
     @State private var screenshotsIconReady = false
     @State private var blankPhotosIconReady = false
 
@@ -129,6 +134,24 @@ struct ResultsView: View {
                 .opacity(duplicatesVisible ? 1 : 0)
                 .offset(y: duplicatesVisible ? 0 : offScreenY)
 
+                NavigationLink(value: HomeDestination.similars) {
+                    ResultCategoryRow(
+                        icon: DuplicateIcon(
+                            foreground: foreground,
+                            invertedForeground: background,
+                            skipAnimation: !similarsIconReady
+                        )
+                        .id(similarsIconID)
+                        .opacity(similarsIconReady ? 1 : 0),
+                        title: "Similar Photos",
+                        itemCount: similarGroupCount,
+                        size: "Review",
+                        foreground: foreground
+                    )
+                }
+                .opacity(similarsVisible ? 1 : 0)
+                .offset(y: similarsVisible ? 0 : offScreenY)
+
                 NavigationLink(value: HomeDestination.screenshots) {
                     ResultCategoryRow(
                         icon: ScanLinesIcon(
@@ -188,6 +211,7 @@ struct ResultsView: View {
         headerVisible = true
         valueVisible = true
         duplicatesVisible = true
+        similarsVisible = true
         screenshotsVisible = true
         blankPhotosVisible = true
     }
@@ -200,7 +224,6 @@ struct ResultsView: View {
         withAnimation(spring) {
             headerVisible = true
         } completion: {
-            // Set ready flag and change ID to force icon recreation with animation enabled
             headerIconReady = true
             headerIconID = UUID()
         }
@@ -217,15 +240,22 @@ struct ResultsView: View {
             duplicatesIconReady = true
             duplicatesIconID = UUID()
         }
-        
+
         withAnimation(spring.delay(staggerInterval * 3)) {
+            similarsVisible = true
+        } completion: {
+            similarsIconReady = true
+            similarsIconID = UUID()
+        }
+
+        withAnimation(spring.delay(staggerInterval * 4)) {
             screenshotsVisible = true
         } completion: {
             screenshotsIconReady = true
             screenshotsIconID = UUID()
         }
-        
-        withAnimation(spring.delay(staggerInterval * 4)) {
+
+        withAnimation(spring.delay(staggerInterval * 5)) {
             blankPhotosVisible = true
         } completion: {
             blankPhotosIconReady = true

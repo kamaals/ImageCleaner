@@ -11,6 +11,10 @@ struct PhotoAssetDescriptor: Sendable, Hashable {
     let createdAt: Date
     let mediaSubtypes: UInt   // raw bits of PHAssetMediaSubtype
     let estimatedFileSize: Int64
+    /// Non-nil when this asset is part of a burst sequence; same value across
+    /// all burst siblings. Two assets sharing this id are *not* duplicates —
+    /// they're consecutive shutter presses (blink variants, etc.).
+    let burstIdentifier: String?
 
     var isScreenshot: Bool {
         PHAssetMediaSubtype(rawValue: mediaSubtypes).contains(.photoScreenshot)
@@ -82,7 +86,8 @@ final class PhotoLibraryService: PhotoLibrary {
                     pixelHeight: asset.pixelHeight,
                     createdAt: asset.creationDate ?? .distantPast,
                     mediaSubtypes: asset.mediaSubtypes.rawValue,
-                    estimatedFileSize: Self.estimateFileSize(asset)
+                    estimatedFileSize: Self.estimateFileSize(asset),
+                    burstIdentifier: asset.burstIdentifier
                 )
             )
         }

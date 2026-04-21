@@ -40,6 +40,65 @@ enum ImageAnalysis {
         (a ^ b).nonzeroBitCount
     }
 
+    /// 64-bit perceptual hash (pHash) — DCT-based. Resizes to 32×32 grayscale,
+    /// applies 2D DCT via `vDSP`, extracts the 8×8 low-frequency block, and
+    /// sets each bit according to whether that coefficient exceeds the mean
+    /// of the block (excluding the DC term). pHash complements dHash: dHash
+    /// is sensitive to gradient direction, pHash captures luminance structure
+    /// across frequency bands. Requiring both to match tightly rules out
+    /// burst-sibling false positives where one hash coincidentally agrees.
+    static func pHash(_ cgImage: CGImage) -> UInt64 {
+        let size = 32
+        var pixels = [UInt8](repeating: 0, count: size * size)
+        guard let context = CGContext(
+            data: &pixels,
+            width: size,
+            height: size,
+            bitsPerComponent: 8,
+            bytesPerRow: size,
+            space: CGColorSpaceCreateDeviceGray(),
+            bitmapInfo: CGImageAlphaInfo.none.rawValue
+        ) else { return 0 }
+        context.draw(cgImage, in: CGRect(x: 0, y: 0, width: size, height: size))
+
+        let floats = pixels.map { Float($0) }
+        guard let dct = vDSP.DCT(count: size, transformType: .II) else { return 0 }
+
+        // 2D DCT: apply 1D DCT to each row, then to each column of the result.
+        var rowsOut = [Float](repeating: 0, count: size * size)
+        for row in 0..<size {
+            let slice = Array(floats[(row * size)..<(row * size + size)])
+            let out = dct.transform(slice)
+            for col in 0..<size { rowsOut[row * size + col] = out[col] }
+        }
+        var dct2D = [Float](repeating: 0, count: size * size)
+        for col in 0..<size {
+            var column = [Float](repeating: 0, count: size)
+            for row in 0..<size { column[row] = rowsOut[row * size + col] }
+            let out = dct.transform(column)
+            for row in 0..<size { dct2D[row * size + col] = out[row] }
+        }
+
+        // Top-left 8×8 low-frequency block.
+        let block = 8
+        var lowFreq = [Float](repeating: 0, count: block * block)
+        for row in 0..<block {
+            for col in 0..<block {
+                lowFreq[row * block + col] = dct2D[row * size + col]
+            }
+        }
+
+        // Mean of the block excluding the DC term at [0,0].
+        let sum = lowFreq.reduce(0, +) - lowFreq[0]
+        let mean = sum / Float(lowFreq.count - 1)
+
+        var hash: UInt64 = 0
+        for i in 0..<lowFreq.count where lowFreq[i] > mean {
+            hash |= (UInt64(1) << i)
+        }
+        return hash
+    }
+
     /// Mean brightness (0…1) plus the variance of brightness across an 8×8
     /// grid. The grid variance catches near-uniform images (blanks, solid
     /// colors) that still have some overall luminance.

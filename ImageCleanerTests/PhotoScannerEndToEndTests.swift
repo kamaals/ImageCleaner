@@ -84,15 +84,18 @@ struct PhotoScannerEndToEndTests {
         id: String,
         width: Int = 64,
         height: Int = 64,
-        isScreenshot: Bool = false
+        isScreenshot: Bool = false,
+        burstIdentifier: String? = nil,
+        createdAt: Date = .now
     ) -> PhotoAssetDescriptor {
         PhotoAssetDescriptor(
             localIdentifier: id,
             pixelWidth: width,
             pixelHeight: height,
-            createdAt: .now,
+            createdAt: createdAt,
             mediaSubtypes: isScreenshot ? PHAssetMediaSubtype.photoScreenshot.rawValue : 0,
-            estimatedFileSize: 500_000
+            estimatedFileSize: 500_000,
+            burstIdentifier: burstIdentifier
         )
     }
 
@@ -151,8 +154,8 @@ struct PhotoScannerEndToEndTests {
         let scanner = PhotoScanner(library: FakeLibrary(descriptors: descs, thumbnails: thumbs))
         let result = try await scanner.scan(forceRescan: true) { _ in }
 
-        #expect(result.duplicateClusters.count == 1)
-        let cluster = try #require(result.duplicateClusters.first)
+        #expect(result.exactDuplicateClusters.count == 1)
+        let cluster = try #require(result.exactDuplicateClusters.first)
         #expect(cluster.sorted() == ["dup_a", "dup_b"])
     }
 
@@ -183,7 +186,7 @@ struct PhotoScannerEndToEndTests {
             progressLog.record(progress)
         }
 
-        #expect(result.duplicateClusters.count == 1)
+        #expect(result.exactDuplicateClusters.count == 1)
         #expect(result.classifiedAssets.filter(\.isScreenshot).count == 1)
         #expect(result.classifiedAssets.filter { $0.isBlank && !$0.isScreenshot }.count == 1)
         let last = progressLog.last()
@@ -204,6 +207,7 @@ struct PhotoScannerEndToEndTests {
                 pixelWidth: 500,
                 pixelHeight: 500,
                 dHash: 0xABCD,
+                pHash: 0xCAFE,
                 brightness: 0.5,
                 variance: 0.1
             ),
@@ -212,6 +216,81 @@ struct PhotoScannerEndToEndTests {
         let asset = try #require(result.classifiedAssets.first)
         #expect(asset.wasCached == true)
         #expect(asset.dHash == 0xABCD) // reused cached hash
+    }
+
+    // MARK: - Burst exclusion + exact/similar split
+
+    /// Two identical images taken as burst siblings must NOT appear in the
+    /// exact-duplicate output (they're deliberate variants). They should
+    /// appear in the similar output so the user can still review them.
+    @Test func burstSiblingsLandInSimilarNotExact() async throws {
+        let pattern = checker(size: 64, cell: 8)
+        let thumbs: [String: CGImage] = [
+            "burst_a": pattern,
+            "burst_b": pattern,
+        ]
+        let descs = [
+            descriptor(id: "burst_a", width: 500, height: 500, burstIdentifier: "BURST_1"),
+            descriptor(id: "burst_b", width: 500, height: 500, burstIdentifier: "BURST_1"),
+        ]
+        let scanner = PhotoScanner(library: FakeLibrary(descriptors: descs, thumbnails: thumbs))
+        let result = try await scanner.scan(forceRescan: true) { _ in }
+
+        #expect(result.exactDuplicateClusters.isEmpty,
+                "burst siblings must not be flagged as exact duplicates")
+        #expect(result.similarClusters.count == 1,
+                "burst siblings should land in similar clusters for review")
+        let similar = try #require(result.similarClusters.first)
+        #expect(similar.sorted() == ["burst_a", "burst_b"])
+    }
+
+    /// Two identical images NOT from a burst, with the SAME `createdAt`, are
+    /// exact duplicates. This models re-imports / re-encodes that preserve
+    /// the original timestamp — the one case where we want the exact tier
+    /// to fire with no human review.
+    @Test func identicalImagesWithSameTimestampAreStillExactDuplicates() async throws {
+        let pattern = checker(size: 64, cell: 8)
+        let thumbs: [String: CGImage] = [
+            "copy_a": pattern,
+            "copy_b": pattern,
+        ]
+        let stamp = Date(timeIntervalSince1970: 1_700_000_000)
+        let descs = [
+            descriptor(id: "copy_a", width: 500, height: 500, createdAt: stamp),
+            descriptor(id: "copy_b", width: 500, height: 500, createdAt: stamp),
+        ]
+        let scanner = PhotoScanner(library: FakeLibrary(descriptors: descs, thumbnails: thumbs))
+        let result = try await scanner.scan(forceRescan: true) { _ in }
+
+        #expect(result.exactDuplicateClusters.count == 1)
+        #expect(result.similarClusters.isEmpty,
+                "exact duplicates must not also be reported as similar")
+    }
+
+    /// Regression for the user-reported false positive: two same-scene shots
+    /// taken a few seconds apart (not a PhotoKit burst, just consecutive
+    /// shutter presses). Hashes match closely because framing dominates the
+    /// luminance structure, but `createdAt` differs. Must land in Similar,
+    /// NOT in Exact.
+    @Test func sameSceneDifferentSecondsLandInSimilarNotExact() async throws {
+        let pattern = checker(size: 64, cell: 8)
+        let thumbs: [String: CGImage] = [
+            "shot_1": pattern,
+            "shot_2": pattern,
+        ]
+        let descs = [
+            descriptor(id: "shot_1", width: 500, height: 500,
+                       createdAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            descriptor(id: "shot_2", width: 500, height: 500,
+                       createdAt: Date(timeIntervalSince1970: 1_700_000_003)),
+        ]
+        let scanner = PhotoScanner(library: FakeLibrary(descriptors: descs, thumbnails: thumbs))
+        let result = try await scanner.scan(forceRescan: true) { _ in }
+
+        #expect(result.exactDuplicateClusters.isEmpty,
+                "same-scene different-second shots must NOT be flagged as exact")
+        #expect(result.similarClusters.count == 1,
+                "they belong in Similar for human review")
     }
 
     @Test func forceRescanIgnoresCache() async throws {
@@ -225,6 +304,7 @@ struct PhotoScannerEndToEndTests {
                 pixelWidth: 500,
                 pixelHeight: 500,
                 dHash: 0xDEAD, // deliberately wrong to prove recomputation
+                pHash: 0xBEEF,
                 brightness: 0.5,
                 variance: 0.1
             ),

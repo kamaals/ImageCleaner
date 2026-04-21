@@ -7,6 +7,12 @@ final class DuplicatesViewModel {
     var photos: [DuplicatePhoto]
     var selectAll = false
     var selectedPhotoForComparison: DuplicatePhoto?
+    /// Snapshot of the compared group's `localIdentifier`s captured when the
+    /// sheet opens. `ScanStore.reloadFromPersisted()` rebuilds `DuplicatePhoto`
+    /// values with fresh UUIDs after every delete, so a UUID-based lookup
+    /// fails as soon as the store reloads. Matching by any surviving asset
+    /// id keeps the open sheet pointed at the right group.
+    private(set) var comparisonAnchorIDs: Set<String> = []
 
     init(photos: [DuplicatePhoto] = DuplicatePhoto.mockData) {
         self.photos = photos
@@ -108,18 +114,19 @@ final class DuplicatesViewModel {
     /// Delete a specific image from a duplicate group
     func deleteImage(_ image: DuplicateImage, from photo: DuplicatePhoto) {
         guard let photoIndex = photos.firstIndex(where: { $0.id == photo.id }) else { return }
-        
+
         // Only delete if more than 1 image remains
         guard photos[photoIndex].images.count > 1 else { return }
-        
+
         // Remove the image
         photos[photoIndex].images.removeAll { $0.id == image.id }
-        
+
         // If only 1 image left, remove the entire duplicate group from the list
         if photos[photoIndex].images.count == 1 {
             // Dismiss the sheet first
             selectedPhotoForComparison = nil
-            
+            comparisonAnchorIDs = []
+
             // Remove the photo group after a short delay for smooth animation
             Task {
                 try? await Task.sleep(for: .milliseconds(300))
@@ -132,21 +139,33 @@ final class DuplicatesViewModel {
             selectedPhotoForComparison = photos[photoIndex]
         }
     }
-    
+
     /// Open comparison sheet for a photo
     func openComparison(for photo: DuplicatePhoto) {
         guard !isInSelectionMode else { return }
         selectedPhotoForComparison = photo
+        comparisonAnchorIDs = Set(photo.images.compactMap(\.localIdentifier))
     }
-    
+
     /// Close comparison sheet
     func closeComparison() {
         selectedPhotoForComparison = nil
+        comparisonAnchorIDs = []
     }
-    
-    /// Get current state of a photo (for sheet updates)
+
+    /// Get current state of a photo for the open sheet. Prefers the anchor
+    /// set captured at open time so the lookup survives `ScanStore` reloads
+    /// minting fresh `DuplicatePhoto.id`s; falls back to UUID match for mock
+    /// data that has no `localIdentifier`.
     func currentPhoto(for photoID: UUID) -> DuplicatePhoto? {
-        photos.first { $0.id == photoID }
+        if !comparisonAnchorIDs.isEmpty,
+           let byAnchor = photos.first(where: { group in
+               !Set(group.images.compactMap(\.localIdentifier))
+                   .isDisjoint(with: comparisonAnchorIDs)
+           }) {
+            return byAnchor
+        }
+        return photos.first { $0.id == photoID }
     }
     
     // MARK: - Animation Methods

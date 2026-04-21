@@ -21,8 +21,9 @@ struct ScanProgress: Sendable, Equatable {
 }
 
 /// Classification of a single asset as produced by the scanner. The `dHash`,
-/// `brightness`, and `variance` are left at `nil` when we reused a cached entry
-/// with no pixel work — the caller writes them back only when they're fresh.
+/// `pHash`, `brightness`, and `variance` are left at `0` when we reused a
+/// cached entry with no pixel work — the caller writes them back only when
+/// they're fresh.
 struct ClassifiedAsset: Sendable {
     let localIdentifier: String
     let pixelWidth: Int
@@ -32,26 +33,42 @@ struct ClassifiedAsset: Sendable {
     let isScreenshot: Bool
     let isBlank: Bool
     let dHash: UInt64
+    let pHash: UInt64
     let brightness: Double
     let variance: Double
+    /// Shared across all photos in the same burst sequence. Burst siblings
+    /// are excluded from duplicate clustering — they're deliberate variants,
+    /// not duplicates.
+    let burstIdentifier: String?
     let wasCached: Bool
 }
 
-/// Result of a completed scan. `duplicateClusters` is a list of id groups,
-/// each ≥ 2 items, that cluster by dHash Hamming distance.
+/// Result of a completed scan.
+///
+/// `exactDuplicateClusters` are near-pixel-identical matches (tight dHash +
+/// pHash thresholds, same pixel dimensions, burst siblings excluded). Safe
+/// to surface as "delete this, it's the same photo twice."
+///
+/// `similarClusters` are visually-close matches (looser threshold) — burst
+/// alternates, same-moment captures, same-scene reshots. Require human review
+/// before deletion. Assets that appear in an exact cluster are *not* repeated
+/// in a similar cluster.
 struct ScanResult: Sendable {
     var classifiedAssets: [ClassifiedAsset]
-    var duplicateClusters: [[String]]
+    var exactDuplicateClusters: [[String]]
+    var similarClusters: [[String]]
 
-    /// Total bytes recoverable if user drops every screenshot, every blank,
-    /// and keeps only the largest-filesize member of each duplicate cluster.
+    /// Bytes recoverable across screenshots, blanks, and exact duplicates
+    /// (keeping one per cluster). Similar clusters are *not* counted — we
+    /// don't want the reclaimable-space headline implying users should
+    /// mass-delete the "review required" pile.
     var reclaimableBytes: Int64 {
         let byID = Dictionary(uniqueKeysWithValues: classifiedAssets.map { ($0.localIdentifier, $0) })
         let screenshotBytes = classifiedAssets.filter(\.isScreenshot).reduce(0) { $0 + $1.fileSize }
         let blankBytes = classifiedAssets
             .filter { $0.isBlank && !$0.isScreenshot }
             .reduce(0) { $0 + $1.fileSize }
-        let dupBytes: Int64 = duplicateClusters.reduce(0) { running, cluster in
+        let dupBytes: Int64 = exactDuplicateClusters.reduce(0) { running, cluster in
             let members = cluster.compactMap { byID[$0] }
             guard !members.isEmpty else { return running }
             let largest = members.max(by: { $0.fileSize < $1.fileSize })?.fileSize ?? 0
@@ -69,6 +86,7 @@ struct CachedAsset: Sendable {
     let pixelWidth: Int
     let pixelHeight: Int
     let dHash: UInt64
+    let pHash: UInt64
     let brightness: Double
     let variance: Double
 }
@@ -80,7 +98,16 @@ actor PhotoScanner {
     private let library: PhotoLibrary
     private let thumbnailPixelSize: Int
     private let concurrency: Int
-    private let clusterThreshold: Int
+    /// Tight Hamming distance for **exact** duplicate clustering — pairs must
+    /// agree on both dHash and pHash within this budget. Research on dHash
+    /// puts the exact/similar boundary at 1–2 bits; we use 2 for dHash and a
+    /// looser pHash budget (the two hashes together act as a joint gate).
+    private let exactDHashThreshold: Int
+    private let exactPHashThreshold: Int
+    /// Looser Hamming budget for **similar** clustering — same-moment shots,
+    /// burst alternates, reshots. Surfaced in a separate UI with human-review
+    /// framing.
+    private let similarDHashThreshold: Int
     private let blankBrightnessCeiling: Double
     private let blankVarianceCeiling: Double
     private let uniformVarianceCeiling: Double
@@ -92,9 +119,11 @@ actor PhotoScanner {
 
     init(
         library: PhotoLibrary,
-        thumbnailPixelSize: Int = 64,
+        thumbnailPixelSize: Int = 128,
         concurrency: Int = 8,
-        clusterThreshold: Int = 5,
+        exactDHashThreshold: Int = 2,
+        exactPHashThreshold: Int = 4,
+        similarDHashThreshold: Int = 5,
         blankBrightnessCeiling: Double = 0.05,
         blankVarianceCeiling: Double = 0.01,
         uniformVarianceCeiling: Double = 0.0005
@@ -102,7 +131,9 @@ actor PhotoScanner {
         self.library = library
         self.thumbnailPixelSize = thumbnailPixelSize
         self.concurrency = concurrency
-        self.clusterThreshold = clusterThreshold
+        self.exactDHashThreshold = exactDHashThreshold
+        self.exactPHashThreshold = exactPHashThreshold
+        self.similarDHashThreshold = similarDHashThreshold
         self.blankBrightnessCeiling = blankBrightnessCeiling
         self.blankVarianceCeiling = blankVarianceCeiling
         self.uniformVarianceCeiling = uniformVarianceCeiling
@@ -187,27 +218,36 @@ actor PhotoScanner {
             classified.append(contentsOf: batchResults)
             progress.processed = classified.count
             progress.blanksFound = classified.reduce(0) { $0 + ($1.isBlank ? 1 : 0) }
-            // Live duplicate count — cheap because `cluster` bucket-filters
-            // by dimensions first so typical libraries yield small buckets.
-            let liveClusters = cluster(classified)
-            progress.duplicateGroupsFound = liveClusters.count
+            // Live exact-duplicate count — cheap because `cluster` bucket-
+            // filters by dimensions first so typical libraries yield small
+            // buckets.
+            let live = cluster(classified)
+            progress.duplicateGroupsFound = live.exact.count
             onProgress(progress)
             // Provide a partial `ScanResult` snapshot so the store can refresh
             // the UI arrays without waiting for the final completion — this
             // is what makes "View Results So Far" meaningful while paused.
-            onPartialResult(ScanResult(classifiedAssets: classified, duplicateClusters: liveClusters))
+            onPartialResult(ScanResult(
+                classifiedAssets: classified,
+                exactDuplicateClusters: live.exact,
+                similarClusters: live.similar
+            ))
         }
 
         // Phase D — cluster -------------------------------------------------
         progress.phase = .clustering
         onProgress(progress)
 
-        let clusters = cluster(classified)
-        progress.duplicateGroupsFound = clusters.count
+        let final = cluster(classified)
+        progress.duplicateGroupsFound = final.exact.count
         progress.phase = .done
         onProgress(progress)
 
-        return ScanResult(classifiedAssets: classified, duplicateClusters: clusters)
+        return ScanResult(
+            classifiedAssets: classified,
+            exactDuplicateClusters: final.exact,
+            similarClusters: final.similar
+        )
     }
 
     // MARK: - Phase C helpers
@@ -237,7 +277,8 @@ actor PhotoScanner {
         forceRescan: Bool,
         cache: [String: CachedAsset]
     ) async -> ClassifiedAsset? {
-        // Cache hit: reuse dHash + brightness + variance iff dimensions match.
+        // Cache hit: reuse dHash + pHash + brightness + variance iff
+        // dimensions match.
         if !forceRescan,
            let cached = cache[descriptor.localIdentifier],
            cached.pixelWidth == descriptor.pixelWidth,
@@ -257,8 +298,10 @@ actor PhotoScanner {
                     uniformVarianceCeiling: uniformVarianceCeiling
                 ),
                 dHash: cached.dHash,
+                pHash: cached.pHash,
                 brightness: cached.brightness,
                 variance: cached.variance,
+                burstIdentifier: descriptor.burstIdentifier,
                 wasCached: true
             )
         }
@@ -278,13 +321,16 @@ actor PhotoScanner {
                 isScreenshot: descriptor.isScreenshot,
                 isBlank: false,
                 dHash: 0,
+                pHash: 0,
                 brightness: 0,
                 variance: 0,
+                burstIdentifier: descriptor.burstIdentifier,
                 wasCached: false
             )
         }
 
         let dHash = ImageAnalysis.dHash(cgImage)
+        let pHash = ImageAnalysis.pHash(cgImage)
         let (brightness, variance) = ImageAnalysis.brightnessAndVariance(cgImage)
         return ClassifiedAsset(
             localIdentifier: descriptor.localIdentifier,
@@ -301,8 +347,10 @@ actor PhotoScanner {
                 uniformVarianceCeiling: uniformVarianceCeiling
             ),
             dHash: dHash,
+            pHash: pHash,
             brightness: brightness,
             variance: variance,
+            burstIdentifier: descriptor.burstIdentifier,
             wasCached: false
         )
     }
@@ -320,19 +368,96 @@ actor PhotoScanner {
 
     // MARK: - Phase D
 
-    private func cluster(_ assets: [ClassifiedAsset]) -> [[String]] {
-        // Bucket by dimensions — duplicates must have identical pixel size
-        // (the experiments converge on this; it also keeps clusters tight).
-        let buckets = Dictionary(grouping: assets.filter { $0.dHash != 0 }) {
+    /// Clusters classified assets into two disjoint tiers:
+    /// - `exact`: dHash ≤ `exactDHashThreshold` *and* pHash ≤
+    ///   `exactPHashThreshold` *and* `createdAt` matches to the second. Burst
+    ///   siblings are excluded. The timestamp gate is the decisive signal for
+    ///   "same source photo, re-imported/re-encoded" vs "consecutive shutter
+    ///   presses of a similar scene" — the hashes alone can't distinguish
+    ///   same-scene-different-moment shots when framing dominates the hash.
+    /// - `similar`: dHash ≤ `similarDHashThreshold`, among assets that didn't
+    ///   already land in an exact cluster. Burst siblings are allowed here so
+    ///   users can still see them as "related" for review.
+    private func cluster(_ assets: [ClassifiedAsset]) -> (exact: [[String]], similar: [[String]]) {
+        let eligible = assets.filter { $0.dHash != 0 }
+        let buckets = Dictionary(grouping: eligible) {
             "\($0.pixelWidth)x\($0.pixelHeight)"
         }
+        let byID = Dictionary(uniqueKeysWithValues: assets.map { ($0.localIdentifier, $0) })
 
-        var clusters: [[String]] = []
+        var exactClusters: [[String]] = []
+        var similarClusters: [[String]] = []
+        var usedInExact = Set<String>()
+
         for bucket in buckets.values where bucket.count >= 2 {
-            let pairs = bucket.map { (id: $0.localIdentifier, hash: $0.dHash) }
-            let groups = ImageAnalysis.cluster(hashes: pairs, threshold: clusterThreshold)
-            clusters.append(contentsOf: groups)
+            let exact = clusterStrict(
+                bucket: bucket,
+                byID: byID,
+                dHashBudget: exactDHashThreshold,
+                pHashBudget: exactPHashThreshold,
+                excludeSameBurst: true,
+                requireSameCreationSecond: true
+            )
+            exactClusters.append(contentsOf: exact)
+            for group in exact { usedInExact.formUnion(group) }
+
+            let remaining = bucket.filter { !usedInExact.contains($0.localIdentifier) }
+            guard remaining.count >= 2 else { continue }
+            let similar = clusterStrict(
+                bucket: remaining,
+                byID: byID,
+                dHashBudget: similarDHashThreshold,
+                pHashBudget: nil,
+                excludeSameBurst: false,
+                requireSameCreationSecond: false
+            )
+            similarClusters.append(contentsOf: similar)
         }
-        return clusters
+        return (exactClusters, similarClusters)
+    }
+
+    /// Greedy clustering inside a single dimension bucket, applying every
+    /// constraint required by the caller's tier. Seeds the first un-clustered
+    /// asset and pulls in every candidate that satisfies all gates.
+    private func clusterStrict(
+        bucket: [ClassifiedAsset],
+        byID: [String: ClassifiedAsset],
+        dHashBudget: Int,
+        pHashBudget: Int?,
+        excludeSameBurst: Bool,
+        requireSameCreationSecond: Bool
+    ) -> [[String]] {
+        var remaining = bucket
+        var groups: [[String]] = []
+
+        while let seed = remaining.first {
+            remaining.removeFirst()
+            var cluster: [String] = [seed.localIdentifier]
+            remaining.removeAll { candidate in
+                if ImageAnalysis.hamming(seed.dHash, candidate.dHash) > dHashBudget {
+                    return false
+                }
+                if let pBudget = pHashBudget,
+                   seed.pHash != 0, candidate.pHash != 0,
+                   ImageAnalysis.hamming(seed.pHash, candidate.pHash) > pBudget {
+                    return false
+                }
+                if excludeSameBurst,
+                   let seedBurst = seed.burstIdentifier,
+                   let candBurst = candidate.burstIdentifier,
+                   seedBurst == candBurst {
+                    return false
+                }
+                if requireSameCreationSecond,
+                   Int(seed.createdAt.timeIntervalSince1970)
+                   != Int(candidate.createdAt.timeIntervalSince1970) {
+                    return false
+                }
+                cluster.append(candidate.localIdentifier)
+                return true
+            }
+            if cluster.count >= 2 { groups.append(cluster) }
+        }
+        return groups
     }
 }
