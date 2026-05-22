@@ -58,10 +58,21 @@ final class EntitlementStore {
     /// Runs `action` immediately if the user is entitled; otherwise stashes
     /// the closure and surfaces the paywall. The paywall consumes and fires
     /// the action on successful purchase / restore, or drops it on cancel.
-    func requireEntitlement(then action: @MainActor @escaping () -> Void) {
+    ///
+    /// `beforePaywall` runs *only* on the gated path, immediately before the
+    /// paywall is surfaced. Call sites triggered from inside a sheet pass
+    /// their sheet's dismissal here: the app-wide paywall sheet is mounted at
+    /// the app root and cannot present on top of an already-open sheet —
+    /// SwiftUI silently queues it until that sheet closes. Subscribed users
+    /// never reach this path.
+    func requireEntitlement(
+        beforePaywall: (@MainActor () -> Void)? = nil,
+        then action: @MainActor @escaping () -> Void
+    ) {
         if isSubscribed {
             action()
         } else {
+            beforePaywall?()
             pendingPaywallAction = PendingPaywallAction(perform: action)
         }
     }

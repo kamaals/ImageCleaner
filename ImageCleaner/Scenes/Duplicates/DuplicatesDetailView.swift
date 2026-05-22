@@ -75,11 +75,13 @@ struct DuplicatesDetailView: View {
                         foreground: foreground,
                         background: background,
                         onDelete: { image in
-                            // Gate: keep both the PhotoKit delete AND the
-                            // local viewModel mutation behind the paywall —
-                            // otherwise the UI would clear the row while the
-                            // photo remains in the user's library.
-                            entitlements.requireEntitlement {
+                            // Gate the PhotoKit delete + the local viewModel
+                            // mutation behind the paywall. `beforePaywall`
+                            // closes this compare sheet first — the app-wide
+                            // paywall sheet can't present over an open sheet.
+                            entitlements.requireEntitlement(
+                                beforePaywall: { viewModel.closeComparison() }
+                            ) {
                                 if let lid = image.localIdentifier {
                                     Task { await store.delete(assetIDs: [lid]) }
                                 }

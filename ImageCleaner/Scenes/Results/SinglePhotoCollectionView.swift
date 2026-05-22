@@ -50,10 +50,13 @@ struct SinglePhotoCollectionView<Icon: View>: View {
                     foreground: foreground,
                     background: background,
                     onDelete: {
-                        // Gate covers both the PhotoKit delete callback and
-                        // the local viewModel mutation — dismissing the
-                        // paywall must leave the grid intact.
-                        entitlements.requireEntitlement {
+                        // Gate the PhotoKit delete callback + the local
+                        // viewModel mutation. `beforePaywall` closes this
+                        // viewer sheet first — the app-wide paywall sheet
+                        // can't present over an open sheet.
+                        entitlements.requireEntitlement(
+                            beforePaywall: { viewModel.closeDetail() }
+                        ) {
                             if let lid = currentPhoto.localIdentifier {
                                 onDeleteRequest([lid])
                             }
