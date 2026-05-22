@@ -10,6 +10,7 @@ struct DuplicatesDetailView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
     @Environment(ScanStore.self) private var store
+    @Environment(EntitlementStore.self) private var entitlements
 
     @State private var viewModel = DuplicatesViewModel(photos: [])
 
@@ -74,10 +75,16 @@ struct DuplicatesDetailView: View {
                         foreground: foreground,
                         background: background,
                         onDelete: { image in
-                            if let lid = image.localIdentifier {
-                                Task { await store.delete(assetIDs: [lid]) }
+                            // Gate: keep both the PhotoKit delete AND the
+                            // local viewModel mutation behind the paywall —
+                            // otherwise the UI would clear the row while the
+                            // photo remains in the user's library.
+                            entitlements.requireEntitlement {
+                                if let lid = image.localIdentifier {
+                                    Task { await store.delete(assetIDs: [lid]) }
+                                }
+                                viewModel.deleteImage(image, from: currentPhoto)
                             }
-                            viewModel.deleteImage(image, from: currentPhoto)
                         }
                     )
                 } else {
@@ -164,10 +171,15 @@ struct DuplicatesDetailView: View {
                     .flatMap(\.images)
                     .compactMap(\.localIdentifier)
             }
-            if !idsToDelete.isEmpty {
-                Task { await store.delete(assetIDs: idsToDelete) }
+            // Gate the entire destructive flow — both the PhotoKit delete
+            // and the viewModel state wipe — so non-subscribed users see
+            // the paywall but their grid stays intact if they dismiss.
+            entitlements.requireEntitlement {
+                if !idsToDelete.isEmpty {
+                    Task { await store.delete(assetIDs: idsToDelete) }
+                }
+                viewModel.clearDuplicates()
             }
-            viewModel.clearDuplicates()
         } label: {
             Text(viewModel.clearButtonTitle)
                 .font(AppFont.jost(size: 18, weight: 300))

@@ -17,6 +17,7 @@ struct SinglePhotoCollectionView<Icon: View>: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.dismiss) private var dismiss
+    @Environment(EntitlementStore.self) private var entitlements
 
     private var foreground: Color { colorScheme == .dark ? .white : .black }
     private var background: Color { colorScheme == .dark ? .black : .white }
@@ -49,10 +50,15 @@ struct SinglePhotoCollectionView<Icon: View>: View {
                     foreground: foreground,
                     background: background,
                     onDelete: {
-                        if let lid = currentPhoto.localIdentifier {
-                            onDeleteRequest([lid])
+                        // Gate covers both the PhotoKit delete callback and
+                        // the local viewModel mutation — dismissing the
+                        // paywall must leave the grid intact.
+                        entitlements.requireEntitlement {
+                            if let lid = currentPhoto.localIdentifier {
+                                onDeleteRequest([lid])
+                            }
+                            viewModel.deletePhoto(currentPhoto)
                         }
-                        viewModel.deletePhoto(currentPhoto)
                     }
                 )
                 .presentationDetents([.medium])
@@ -124,10 +130,15 @@ struct SinglePhotoCollectionView<Icon: View>: View {
                 ? viewModel.photos.filter(\.isSelected)
                 : viewModel.photos
             ).compactMap(\.localIdentifier)
-            if !idsToDelete.isEmpty {
-                onDeleteRequest(idsToDelete)
+            // Gate the entire destructive flow — both the PhotoKit delete
+            // callback and the viewModel state wipe. If the user dismisses
+            // the paywall the grid stays intact.
+            entitlements.requireEntitlement {
+                if !idsToDelete.isEmpty {
+                    onDeleteRequest(idsToDelete)
+                }
+                viewModel.clearPhotos()
             }
-            viewModel.clearPhotos()
         } label: {
             Text(viewModel.clearButtonTitle)
                 .font(AppFont.jost(size: 18, weight: 300))
