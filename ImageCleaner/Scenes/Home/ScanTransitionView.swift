@@ -4,14 +4,27 @@ import CoreText
 struct ScanTransitionView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
     @Environment(ScanStore.self) private var store
     @State private var transition = ScanTransitionViewModel()
     @State private var scanVM = ScanViewModel()
     @State private var hasPerformedInitialEntry = false
     @State private var showCancelScanConfirmation = false
+    @State private var pendingScanKickoff: Task<Void, Never>?
     @Bindable var homeVM: HomeViewModel
     var heroNamespace: Namespace.ID?
     @Namespace private var localNamespace
+
+    /// Delay between tapping SCAN and actually kicking off the scan task.
+    /// Holds long enough for the *entire* intro animation to settle —
+    /// button-exit (~0.8 s) + text morph (~0.35 s) + scan-content stagger
+    /// (~0.7 s) ≈ 1.85 s — plus a small buffer so the scan's startup work
+    /// doesn't bleed into the tail of the stagger. The earlier 0.95 s value
+    /// kicked the scan off mid-morph, and the scan's `@Observable` updates
+    /// + main-thread `loadCache` competed with the animation for the main
+    /// thread — visibly stuttering it. An isolation test (scan kickoff
+    /// commented out → buttery morph) confirmed the cause.
+    private static let scanKickoffDelay: Duration = .milliseconds(2200)
 
     private var isScanning: Bool { transition.isScanning }
     private var contentEntered: Bool { transition.contentEntered }
@@ -88,6 +101,8 @@ struct ScanTransitionView: View {
             titleVisibility: .visible
         ) {
             Button("Cancel Scan", role: .destructive) {
+                pendingScanKickoff?.cancel()
+                pendingScanKickoff = nil
                 store.cancelScan()
                 scanVM = ScanViewModel()
                 if reduceMotion { transition.jumpToHomeState() }
@@ -128,8 +143,19 @@ struct ScanTransitionView: View {
                 }
             }
         }
-        .onChange(of: store.scanProgress) { _, new in
-            scanVM.syncFromProgress(new)
+        // Decouple the parent body from `store.scanProgress`: an `.onChange`
+        // here would make every batch update re-evaluate `ScanTransitionView`
+        // mid-morph. The bridge observes scanProgress in an isolated leaf and
+        // forwards into the scan view-model instead.
+        .background(ScanProgressBridge { scanVM.syncFromProgress($0) })
+        .onChange(of: scenePhase) { _, phase in
+            // Auto-pause when the user backgrounds the app mid-scan. The pause
+            // is sticky — coming back foreground leaves the scan parked at the
+            // last batch boundary, and the user must tap Resume to continue.
+            // .inactive (Control Center / brief notifications) is intentionally
+            // ignored; only the hard .background transition pauses.
+            guard phase == .background, store.isScanning, !store.isPaused else { return }
+            store.pauseScan()
         }
     }
 
@@ -167,9 +193,23 @@ struct ScanTransitionView: View {
 
             return Button {
                 guard !isScanning else { return }
-                if reduceMotion { transition.jumpToScanState() }
-                else { transition.animateToScan() }
-                scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
+                if reduceMotion {
+                    transition.jumpToScanState()
+                    scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
+                } else {
+                    transition.animateToScan()
+                    // Defer scan kickoff until the *entire* intro animation
+                    // has settled. Verified by an animate-only isolation test:
+                    // the morph + stagger play perfectly with no scan running;
+                    // overlapping the scan startup with the animation was the
+                    // entire cause of the stutter.
+                    pendingScanKickoff?.cancel()
+                    pendingScanKickoff = Task { @MainActor in
+                        try? await Task.sleep(for: Self.scanKickoffDelay)
+                        guard !Task.isCancelled else { return }
+                        scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
+                    }
+                }
             } label: {
                 Text("SCANNING")
                     .font(Font(Self.jostBlackUIFont(size: baseFontSize)))
@@ -240,115 +280,16 @@ struct ScanTransitionView: View {
     // MARK: - Scan Content
 
     private var scanContent: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 1. Photos count
-            Text("\(scanVM.totalPhotos.formatted()) Photos")
-                .font(AppFont.body)
-                .padding(.top, 2)
-                .opacity(transition.photosTextVisible ? 1 : 0)
-                .offset(y: transition.photosTextVisible ? 0 : 12)
-
-            // 2. Progress bar
-            GeometryReader { geo in
-                ZStack(alignment: .leading) {
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(Color.primary.opacity(0.12))
-                        .frame(height: 8)
-
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(foreground)
-                        .frame(width: geo.size.width * scanVM.progress, height: 8)
-                        .animation(.linear(duration: 0.1), value: scanVM.progress)
-                }
-            }
-            .frame(height: 8)
-            .padding(.top, 12)
-            .opacity(transition.progressBarVisible ? 1 : 0)
-            .offset(y: transition.progressBarVisible ? 0 : 12)
-
-            // 3. Scanned count
-            HStack(spacing: 6) {
-                Image(systemName: "pencil")
-                    .font(.system(size: 14))
-                Text("\(scanVM.scannedCount.formatted()) Scanned")
-                    .font(AppFont.body)
-            }
-            .padding(.top, 12)
-            .opacity(transition.scannedTextVisible ? 1 : 0)
-            .offset(y: transition.scannedTextVisible ? 0 : 12)
-
-            // 4-6. Report rows (stagger individually)
-            VStack(spacing: 0) {
-                ScanResultRow(text: scanVM.duplicatesText, shade: 0.08)
-                    .opacity(transition.duplicatesRowVisible ? 1 : 0)
-                    .offset(y: transition.duplicatesRowVisible ? 0 : 12)
-
-                ScanResultRow(text: scanVM.screenshotsText, shade: 0.13)
-                    .opacity(transition.screenshotsRowVisible ? 1 : 0)
-                    .offset(y: transition.screenshotsRowVisible ? 0 : 12)
-
-                ScanResultRow(text: scanVM.blankPhotosText, shade: 0.18)
-                    .opacity(transition.blankPhotosRowVisible ? 1 : 0)
-                    .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
-            }
-            .padding(.top, 24)
-
-            // 7. Pause / Resume button + "View Results So Far" link
-            pauseControls
-                .padding(.top, 24)
-                .opacity(transition.blankPhotosRowVisible ? 1 : 0)
-                .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
-        }
-    }
-
-    // MARK: - Pause Controls
-
-    private var hasPartialResults: Bool {
-        !store.duplicates.isEmpty || !store.screenshots.isEmpty || !store.blanks.isEmpty
-    }
-
-    private var pauseControls: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Button {
-                if store.isPaused { store.resumeScan() }
-                else { store.pauseScan() }
-            } label: {
-                Text(store.isPaused ? "Resume" : "Pause")
-                    .font(AppFont.jost(size: 18, weight: 300))
-                    .foregroundStyle(foreground)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 10)
-                    .background(background)
-                    .overlay(
-                        Rectangle()
-                            .stroke(foreground, lineWidth: 1)
-                    )
-                    .background(
-                        Rectangle()
-                            .fill(foreground)
-                            .offset(x: -4, y: 4)
-                    )
-            }
-            .accessibilityLabel(store.isPaused ? "Resume scan" : "Pause scan")
-
-            if store.isPaused && hasPartialResults {
-                Button {
-                    homeVM.navigateToResults()
-                } label: {
-                    HStack(spacing: 4) {
-                        Text("View Results So Far")
-                        Image(systemName: "arrow.right")
-                            .font(.footnote)
-                    }
-                    .font(AppFont.subheadline)
-                    .foregroundStyle(AppPalette.secondaryText)
-                }
-                .accessibilityLabel("View results so far")
-                .transition(.opacity.combined(with: .move(edge: .leading)))
-            }
-        }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: store.isPaused)
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: hasPartialResults)
+        // Extracted to its own view so the parent body doesn't depend on the
+        // scan view-model's tickers (totalPhotos, scannedCount, progress…) —
+        // otherwise the morph would re-render on every scan progress update.
+        ScanContentView(
+            scanVM: scanVM,
+            transition: transition,
+            homeVM: homeVM,
+            foreground: foreground,
+            background: background
+        )
     }
 
     // MARK: - Helpers
@@ -405,11 +346,20 @@ struct ScanTransitionView: View {
     /// lookup on some devices and silently falls back to a narrower system font,
     /// which makes the rendered text wider than predicted and clips at the screen edge.
     private func measureText(_ string: String, size: CGFloat = ScanTransitionView.referenceFontSize) -> CGFloat {
+        // Memoize: glyph width is a pure function of (string, size) and never
+        // depends on the animating transition state — so it is computed once
+        // and reused across every frame of the SCAN→SCANNING morph instead of
+        // re-running Core Text typesetting 100+ times per transition.
+        let key = WidthKey(string: string, size: size)
+        if let cached = Self.widthCache[key] { return cached }
+
         let font = Self.jostBlackUIFont(size: size)
         let rawWidth = (string as NSString).size(withAttributes: [.font: font]).width
         // tracking(-4) in SwiftUI at 120pt removes ~4pt per character gap. Scale linearly with size.
         let trackingAdjustment = -4 * CGFloat(max(0, string.count - 1)) * (size / ScanTransitionView.referenceFontSize)
-        return rawWidth + trackingAdjustment
+        let width = rawWidth + trackingAdjustment
+        Self.widthCache[key] = width
+        return width
     }
 
     // Variable-font CoreText loader for Jost-Black (weight 900).
@@ -426,7 +376,29 @@ struct ScanTransitionView: View {
 
     private static let weightAxisTag: UInt32 = 0x77676874  // 'wght'
 
+    /// Key for `widthCache` — measured width is a pure function of these.
+    private struct WidthKey: Hashable {
+        let string: String
+        let size: CGFloat
+    }
+
+    /// Caches for the two animation-invariant but expensive computations.
+    /// `CTFontCreateCopyWithAttributes` instantiates the variable font along
+    /// its weight axis — far too costly to run on every frame — and both the
+    /// font and the text widths depend only on `size`, never on the animating
+    /// morph state. Each cache holds only a handful of sizes per session, so
+    /// no eviction is needed.
+    private static var fontCache: [CGFloat: UIFont] = [:]
+    private static var widthCache: [WidthKey: CGFloat] = [:]
+
     static func jostBlackUIFont(size: CGFloat) -> UIFont {
+        if let cached = fontCache[size] { return cached }
+        let font = uncachedJostBlackUIFont(size: size)
+        fontCache[size] = font
+        return font
+    }
+
+    private static func uncachedJostBlackUIFont(size: CGFloat) -> UIFont {
         guard let cgFont = variableCGFont else {
             return .systemFont(ofSize: size, weight: .black)
         }
@@ -436,5 +408,165 @@ struct ScanTransitionView: View {
         ] as CFDictionary)
         let varied = CTFontCreateCopyWithAttributes(ctFont, size, nil, variation)
         return varied as UIFont
+    }
+}
+
+// MARK: - Decoupled subviews
+//
+// These exist solely to keep `ScanTransitionView.body`'s `@Observable`
+// dependency footprint minimal. Every property the parent body reads becomes a
+// re-evaluation trigger; live scan progress fires fast enough to spam the body
+// mid-morph and stutter the animation. Moving scan-state reads into isolated
+// leaf views localises the re-renders to those leaves and leaves the morph
+// untouched.
+
+/// Invisible bridge that observes `ScanStore.scanProgress` and forwards each
+/// update into the scan view-model — without making the parent depend on
+/// `scanProgress`.
+private struct ScanProgressBridge: View {
+    @Environment(ScanStore.self) private var store
+    let onProgressChange: (ScanProgress) -> Void
+
+    var body: some View {
+        Color.clear
+            .frame(width: 0, height: 0)
+            .onChange(of: store.scanProgress) { _, new in
+                onProgressChange(new)
+            }
+    }
+}
+
+/// Live scan UI: counts, progress bar, result rows, pause/resume. Owns its
+/// reads of `scanVM.*` (counters) and forwards `homeVM` / colors down so the
+/// parent's morph isn't re-rendered every scan batch.
+private struct ScanContentView: View {
+    @Bindable var scanVM: ScanViewModel
+    @Bindable var transition: ScanTransitionViewModel
+    @Bindable var homeVM: HomeViewModel
+    var foreground: Color
+    var background: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 1. Photos count
+            Text("\(scanVM.totalPhotos.formatted()) Photos")
+                .font(AppFont.body)
+                .padding(.top, 2)
+                .opacity(transition.photosTextVisible ? 1 : 0)
+                .offset(y: transition.photosTextVisible ? 0 : 12)
+
+            // 2. Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.primary.opacity(0.12))
+                        .frame(height: 8)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(foreground)
+                        .frame(width: geo.size.width * scanVM.progress, height: 8)
+                        .animation(.linear(duration: 0.1), value: scanVM.progress)
+                }
+            }
+            .frame(height: 8)
+            .padding(.top, 12)
+            .opacity(transition.progressBarVisible ? 1 : 0)
+            .offset(y: transition.progressBarVisible ? 0 : 12)
+
+            // 3. Scanned count
+            HStack(spacing: 6) {
+                Image(systemName: "pencil")
+                    .font(.system(size: 14))
+                Text("\(scanVM.scannedCount.formatted()) Scanned")
+                    .font(AppFont.body)
+            }
+            .padding(.top, 12)
+            .opacity(transition.scannedTextVisible ? 1 : 0)
+            .offset(y: transition.scannedTextVisible ? 0 : 12)
+
+            // 4-6. Report rows (stagger individually)
+            VStack(spacing: 0) {
+                ScanResultRow(text: scanVM.duplicatesText, shade: 0.08)
+                    .opacity(transition.duplicatesRowVisible ? 1 : 0)
+                    .offset(y: transition.duplicatesRowVisible ? 0 : 12)
+
+                ScanResultRow(text: scanVM.screenshotsText, shade: 0.13)
+                    .opacity(transition.screenshotsRowVisible ? 1 : 0)
+                    .offset(y: transition.screenshotsRowVisible ? 0 : 12)
+
+                ScanResultRow(text: scanVM.blankPhotosText, shade: 0.18)
+                    .opacity(transition.blankPhotosRowVisible ? 1 : 0)
+                    .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
+            }
+            .padding(.top, 24)
+
+            // 7. Pause / Resume button + "View Results So Far" link
+            PauseControlsView(
+                homeVM: homeVM,
+                foreground: foreground,
+                background: background
+            )
+            .padding(.top, 24)
+            .opacity(transition.blankPhotosRowVisible ? 1 : 0)
+            .offset(y: transition.blankPhotosRowVisible ? 0 : 12)
+        }
+    }
+}
+
+/// Pause / Resume controls + the "View Results So Far" link. Reads
+/// `store.isPaused` / `store.duplicates` / `store.screenshots` / `store.blanks`
+/// here so the parent body doesn't have to.
+private struct PauseControlsView: View {
+    @Environment(ScanStore.self) private var store
+    @Bindable var homeVM: HomeViewModel
+    var foreground: Color
+    var background: Color
+
+    private var hasPartialResults: Bool {
+        !store.duplicates.isEmpty || !store.screenshots.isEmpty || !store.blanks.isEmpty
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Button {
+                if store.isPaused { store.resumeScan() }
+                else { store.pauseScan() }
+            } label: {
+                Text(store.isPaused ? "Resume" : "Pause")
+                    .font(AppFont.jost(size: 18, weight: 300))
+                    .foregroundStyle(foreground)
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 10)
+                    .background(background)
+                    .overlay(
+                        Rectangle()
+                            .stroke(foreground, lineWidth: 1)
+                    )
+                    .background(
+                        Rectangle()
+                            .fill(foreground)
+                            .offset(x: -4, y: 4)
+                    )
+            }
+            .accessibilityLabel(store.isPaused ? "Resume scan" : "Pause scan")
+
+            if store.isPaused && hasPartialResults {
+                Button {
+                    homeVM.navigateToResults()
+                } label: {
+                    HStack(spacing: 4) {
+                        Text("View Results So Far")
+                        Image(systemName: "arrow.right")
+                            .font(.footnote)
+                    }
+                    .font(AppFont.subheadline)
+                    .foregroundStyle(AppPalette.secondaryText)
+                }
+                .accessibilityLabel("View results so far")
+                .transition(.opacity.combined(with: .move(edge: .leading)))
+            }
+        }
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: store.isPaused)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: hasPartialResults)
     }
 }

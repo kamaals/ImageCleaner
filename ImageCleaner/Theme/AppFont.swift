@@ -27,6 +27,21 @@ enum AppFont {
     static var footnote: Font { jost(size: 13, relativeTo: .footnote, weight: 500) }
     static var caption: Font { jost(size: 12, relativeTo: .caption1, weight: 500) }
 
+    /// Key for `fontCache`. `scaledSize` already folds in the active Dynamic
+    /// Type category, so a text-size change yields a different key and a
+    /// correctly re-scaled font — no manual cache invalidation needed.
+    private struct FontKey: Hashable {
+        let scaledSize: CGFloat
+        let weight: CGFloat
+    }
+
+    /// Memoizes variable-font instantiation. `CTFontCreateCopyWithAttributes`
+    /// instances the font along its weight axis and is far too costly to run
+    /// per render — yet `jost(...)` is called for every `Text` on every body
+    /// evaluation, including each frame of an animation. Bounded by the small
+    /// set of (size, weight, text-size) combinations the app uses.
+    private static var fontCache: [FontKey: Font] = [:]
+
     /// Jost variable font with any weight from 100-900.
     /// Loads directly from the bundled Jost-VariableFont_wght.ttf file.
     /// 100=Thin, 200=ExtraLight, 300=Light, 400=Regular, 500=Medium, 600=SemiBold, 700=Bold, 800=ExtraBold, 900=Black
@@ -40,11 +55,25 @@ enum AppFont {
             return UIFontMetrics(forTextStyle: style).scaledValue(for: size)
         }()
 
+        let key = FontKey(scaledSize: scaledSize, weight: weight)
+        if let cached = fontCache[key] { return cached }
+
+        let font = uncachedJost(scaledSize: scaledSize, baseSize: size, style: style, weight: weight)
+        fontCache[key] = font
+        return font
+    }
+
+    private static func uncachedJost(
+        scaledSize: CGFloat,
+        baseSize: CGFloat,
+        style: UIFont.TextStyle?,
+        weight: CGFloat
+    ) -> Font {
         guard let cgFont = variableCGFont else {
             if let style = style.flatMap(Font.TextStyle.init) {
-                return Font.custom("Jost-Medium", size: size, relativeTo: style)
+                return Font.custom("Jost-Medium", size: baseSize, relativeTo: style)
             }
-            return Font.custom("Jost-Medium", size: size)
+            return Font.custom("Jost-Medium", size: baseSize)
         }
 
         let ctFont = CTFontCreateWithGraphicsFont(cgFont, scaledSize, nil, nil)

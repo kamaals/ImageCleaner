@@ -30,8 +30,19 @@ struct ImageCleanerApp: App {
 
         // Configure RevenueCat BEFORE creating EntitlementStore — the store
         // reads `Purchases.shared.cachedCustomerInfo` synchronously on init.
-        // Public iOS key from app.revenuecat.com → Project Settings → API Keys.
+        //
+        // Per-config API key: RevenueCat fatal-errors on a `test_` key in a
+        // Release build (that guardrail blocks a Test Store key from reaching
+        // production). Debug uses the Test Store key for paywall dev; the
+        // Release placeholder below lets us run Release for *non-paywall*
+        // testing — e.g. confirming the SCAN morph is smooth. Swap your real
+        // `appl_…` key from the RevenueCat dashboard in before shipping (and
+        // ideally lift these into an .xcconfig per-build-config).
+        #if DEBUG
         Purchases.configure(withAPIKey: "test_NFPtZcrFSbdeamXPngSWfgdgYbS")
+        #else
+        Purchases.configure(withAPIKey: "appl_PLACEHOLDER_FOR_RELEASE_TESTING_DO_NOT_SHIP")
+        #endif
         self._entitlements = State(wrappedValue: EntitlementStore())
     }
 

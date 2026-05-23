@@ -126,11 +126,18 @@ final class ScanStore {
         }
 
         // Build the cache up-front so the scanner can work actor-isolated
-        // without reaching into SwiftData.
-        let cache = loadCache(forceRescan: forceRescan)
+        // without reaching into SwiftData. Off-main: a populated cache can be
+        // thousands of rows, and walking it on `mainContext` was producing a
+        // 1–2 s main-thread hang at the 950 ms kickoff that visibly stuttered
+        // the SCAN→SCANNING morph.
+        let cache = await loadCache(forceRescan: forceRescan)
 
         currentScanTask?.cancel()
-        let task = Task { [weak self] in
+        // Spawn the scan at .utility — the actor's TaskGroup workers inherit
+        // this priority through the async chain, so pixel hashing can no
+        // longer preempt UI rendering on the main thread. Visible impact:
+        // home/scan animations stay smooth while the scan fills cores.
+        let task = Task(priority: .utility) { [weak self] in
             guard let self else { return }
             do {
                 let result = try await self.scanner.scan(
@@ -266,25 +273,41 @@ final class ScanStore {
         try? modelContext.save()
     }
 
-    private func loadCache(forceRescan: Bool) -> [String: CachedAsset] {
+    /// Loads the cached classification of every previously-scanned asset.
+    ///
+    /// Runs the fetch + dictionary build on a **detached background task** so
+    /// the main thread stays free during scan startup. The previous in-line
+    /// implementation ran `modelContext.fetch` on `mainContext` (which is
+    /// `@MainActor`-bound), producing a 1–2 s hang at the 950 ms scan kickoff
+    /// that visibly stuttered the SCAN→SCANNING morph (caught by Instruments
+    /// → Hangs).
+    ///
+    /// Crossing the actor boundary is safe here: the `@Model` rows are read
+    /// only on the background context, and the materialised `[String:
+    /// CachedAsset]` is composed of `Sendable` structs.
+    private func loadCache(forceRescan: Bool) async -> [String: CachedAsset] {
         guard !forceRescan else { return [:] }
-        let descriptor = FetchDescriptor<ScannedAsset>()
-        let rows = (try? modelContext.fetch(descriptor)) ?? []
-        // Skip pre-pHash rows so they're re-hashed on the next scan rather
-        // than reused with pHash=0 (which would make the exact-duplicate pass
-        // effectively dHash-only for those assets).
-        return Dictionary(uniqueKeysWithValues: rows.compactMap { row in
-            guard row.pHashUnsigned != 0 else { return nil }
-            return (row.localIdentifier, CachedAsset(
-                localIdentifier: row.localIdentifier,
-                pixelWidth: row.pixelWidth,
-                pixelHeight: row.pixelHeight,
-                dHash: row.dHashUnsigned,
-                pHash: row.pHashUnsigned,
-                brightness: row.brightness,
-                variance: row.variance
-            ))
-        })
+        let container = modelContext.container
+        return await Task.detached(priority: .utility) {
+            let context = ModelContext(container)
+            let descriptor = FetchDescriptor<ScannedAsset>()
+            let rows = (try? context.fetch(descriptor)) ?? []
+            // Skip pre-pHash rows so they're re-hashed on the next scan rather
+            // than reused with pHash=0 (which would make the exact-duplicate
+            // pass effectively dHash-only for those assets).
+            return Dictionary(uniqueKeysWithValues: rows.compactMap { row -> (String, CachedAsset)? in
+                guard row.pHashUnsigned != 0 else { return nil }
+                return (row.localIdentifier, CachedAsset(
+                    localIdentifier: row.localIdentifier,
+                    pixelWidth: row.pixelWidth,
+                    pixelHeight: row.pixelHeight,
+                    dHash: row.dHashUnsigned,
+                    pHash: row.pHashUnsigned,
+                    brightness: row.brightness,
+                    variance: row.variance
+                ))
+            })
+        }.value
     }
 
     // MARK: - Persist
