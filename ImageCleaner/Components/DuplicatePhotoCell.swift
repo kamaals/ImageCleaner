@@ -9,7 +9,7 @@ struct DuplicatePhotoCell: View {
     private static let cornerRadius: CGFloat = 14
 
     var body: some View {
-        ZStack(alignment: .topLeading) {
+        ZStack(alignment:.topLeading) {
             AssetThumbnailView(
                 localIdentifier: photo.images.first?.localIdentifier,
                 placeholderShade: photo.primaryShade

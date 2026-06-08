@@ -120,7 +120,10 @@ actor PhotoScanner {
     init(
         library: PhotoLibrary,
         thumbnailPixelSize: Int = 128,
-        concurrency: Int = 8,
+        // Leave at least two cores free for UI rendering + system. On a
+        // 6-core iPhone this gives 4 hash workers — more than enough to
+        // saturate I/O without preempting the main thread.
+        concurrency: Int = max(2, ProcessInfo.processInfo.activeProcessorCount - 2),
         exactDHashThreshold: Int = 2,
         exactPHashThreshold: Int = 4,
         similarDHashThreshold: Int = 5,
@@ -205,6 +208,14 @@ actor PhotoScanner {
             descriptors[start..<min(start + batchSize, descriptors.count)]
         }
 
+        // Live `cluster()` is O(n²) per call — running it every batch makes
+        // the UI lag exponentially as the scanned list grows. Recompute every
+        // 5th batch (≈ once per 250 photos) plus the final batch; the live
+        // duplicate count + "View Results So Far" still feel real-time.
+        let liveClusterEvery = 5
+        var batchIndex = 0
+        var lastLive: (exact: [[String]], similar: [[String]]) = ([], [])
+
         for batch in batches {
             try Task.checkCancellation()
             await awaitResumeIfPaused()
@@ -216,22 +227,33 @@ actor PhotoScanner {
                 cache: cache
             )
             classified.append(contentsOf: batchResults)
+            batchIndex += 1
             progress.processed = classified.count
             progress.blanksFound = classified.reduce(0) { $0 + ($1.isBlank ? 1 : 0) }
-            // Live exact-duplicate count — cheap because `cluster` bucket-
-            // filters by dimensions first so typical libraries yield small
-            // buckets.
-            let live = cluster(classified)
-            progress.duplicateGroupsFound = live.exact.count
-            onProgress(progress)
-            // Provide a partial `ScanResult` snapshot so the store can refresh
-            // the UI arrays without waiting for the final completion — this
-            // is what makes "View Results So Far" meaningful while paused.
-            onPartialResult(ScanResult(
-                classifiedAssets: classified,
-                exactDuplicateClusters: live.exact,
-                similarClusters: live.similar
-            ))
+
+            let isLastBatch = batchIndex == batches.count
+            let shouldEmitPartial = isLastBatch
+                || batchIndex == 1
+                || batchIndex.isMultiple(of: liveClusterEvery)
+
+            if shouldEmitPartial {
+                lastLive = cluster(classified)
+                progress.duplicateGroupsFound = lastLive.exact.count
+                onProgress(progress)
+                // Provide a partial `ScanResult` snapshot so the store can
+                // refresh the UI arrays without waiting for completion —
+                // this is what makes "View Results So Far" meaningful.
+                onPartialResult(ScanResult(
+                    classifiedAssets: classified,
+                    exactDuplicateClusters: lastLive.exact,
+                    similarClusters: lastLive.similar
+                ))
+            } else {
+                // Cheap progress update only — keep the duplicate count from
+                // the last cluster pass so the UI doesn't flicker back to 0.
+                progress.duplicateGroupsFound = lastLive.exact.count
+                onProgress(progress)
+            }
         }
 
         // Phase D — cluster -------------------------------------------------
@@ -259,7 +281,10 @@ actor PhotoScanner {
     ) async throws -> [ClassifiedAsset] {
         try await withThrowingTaskGroup(of: ClassifiedAsset?.self) { group in
             for descriptor in batch {
-                group.addTask { [self] in
+                // Pin every worker to .utility so even if a future caller
+                // creates the scan Task at a higher priority the per-photo
+                // hash work stays below UI rendering.
+                group.addTask(priority: .utility) { [self] in
                     try Task.checkCancellation()
                     return await classify(descriptor, forceRescan: forceRescan, cache: cache)
                 }

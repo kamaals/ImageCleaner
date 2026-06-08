@@ -23,9 +23,9 @@ struct AppIconDrawAnimation: View {
     var skipDrawAnimation: Bool
     var onFinished: (() -> Void)?
 
-    @State private var backProgress: CGFloat = 0
-    @State private var bridgeProgress: CGFloat = 0
-    @State private var frontProgress: CGFloat = 0
+    @State private var backProgress: CGFloat
+    @State private var bridgeProgress: CGFloat
+    @State private var frontProgress: CGFloat
     @State private var hasStarted = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -42,6 +42,14 @@ struct AppIconDrawAnimation: View {
         self.frontColor = frontColor
         self.skipDrawAnimation = skipDrawAnimation
         self.onFinished = onFinished
+        // Render the final state from frame 0 when we're a hero target. Without
+        // this, the destination icon paints empty for one frame while
+        // matchedGeometryEffect is interpolating its frame, producing a visible
+        // pop/glitch at the splash → home handoff.
+        let initial: CGFloat = skipDrawAnimation ? 1 : 0
+        _backProgress = State(initialValue: initial)
+        _bridgeProgress = State(initialValue: initial)
+        _frontProgress = State(initialValue: initial)
     }
 
     var body: some View {

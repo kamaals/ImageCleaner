@@ -31,18 +31,11 @@ struct ImageCleanerApp: App {
         // Configure RevenueCat BEFORE creating EntitlementStore — the store
         // reads `Purchases.shared.cachedCustomerInfo` synchronously on init.
         //
-        // Per-config API key: RevenueCat fatal-errors on a `test_` key in a
-        // Release build (that guardrail blocks a Test Store key from reaching
-        // production). Debug uses the Test Store key for paywall dev; the
-        // Release placeholder below lets us run Release for *non-paywall*
-        // testing — e.g. confirming the SCAN morph is smooth. Swap your real
-        // `appl_…` key from the RevenueCat dashboard in before shipping (and
-        // ideally lift these into an .xcconfig per-build-config).
-        #if DEBUG
-        Purchases.configure(withAPIKey: "test_NFPtZcrFSbdeamXPngSWfgdgYbS")
-        #else
-        Purchases.configure(withAPIKey: "appl_PLACEHOLDER_FOR_RELEASE_TESTING_DO_NOT_SHIP")
-        #endif
+        // Key comes from Config.xcconfig (gitignored) → Info.plist's
+        // `RevenueCatAPIKey`. Debug build resolves to a `test_…` key
+        // (RevenueCat's Test Store, synthetic products). Release resolves to
+        // the production `appl_…` key. See Config.xcconfig.example for setup.
+        Purchases.configure(withAPIKey: Self.revenueCatAPIKey())
         self._entitlements = State(wrappedValue: EntitlementStore())
     }
 
@@ -55,6 +48,29 @@ struct ImageCleanerApp: App {
                 .environment(entitlements)
         }
         .modelContainer(modelContainer)
+    }
+
+    /// Reads `RevenueCatAPIKey` from the merged Info.plist (sourced from
+    /// `Config.xcconfig` at build time). In DEBUG we crash on a missing /
+    /// placeholder key because there's no scenario where launching a Debug
+    /// build with an unwired xcconfig is intentional — better to surface it
+    /// loudly here than spend half an hour wondering why the paywall is
+    /// blank. In RELEASE we return an empty string and let RevenueCat fail
+    /// to initialise; the rest of the app still boots, and `AppPaywallView`
+    /// will surface the "Couldn't load subscription options" failure path
+    /// instead of crashing on a real user.
+    private static func revenueCatAPIKey() -> String {
+        let key = (Bundle.main.object(forInfoDictionaryKey: "RevenueCatAPIKey") as? String) ?? ""
+        #if DEBUG
+        if key.isEmpty || key.hasPrefix("appl_PASTE") || key.hasPrefix("test_REPLACE") {
+            fatalError("""
+                Missing RevenueCatAPIKey. Make sure Config.xcconfig exists \
+                (copy from Config.xcconfig.example) and is wired in Xcode: \
+                Project → Info → Configurations → set Debug + Release to Config.
+                """)
+        }
+        #endif
+        return key
     }
 }
 

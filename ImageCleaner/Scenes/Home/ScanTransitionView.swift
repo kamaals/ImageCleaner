@@ -11,6 +11,13 @@ struct ScanTransitionView: View {
     @State private var hasPerformedInitialEntry = false
     @State private var showCancelScanConfirmation = false
     @State private var pendingScanKickoff: Task<Void, Never>?
+    /// Gates the heavy morphingText / scanContent subtree on first appear.
+    /// Stays `false` until the splash → home hero matched-geometry spring has
+    /// settled, then flips to `true`. Keeps the icon's hero transition free
+    /// of competing layout work — the previous behaviour mounted the entire
+    /// tree at once, and the layout pass for morphingText + ScanContentView
+    /// stuttered the icon's motion.
+    @State private var heroContentReady = false
     @Bindable var homeVM: HomeViewModel
     var heroNamespace: Namespace.ID?
     @Namespace private var localNamespace
@@ -40,10 +47,15 @@ struct ScanTransitionView: View {
             let scanLeftInset = scanLeftOffset(screenWidth: bodyGeo.size.width)
 
             VStack(alignment: .leading, spacing: 0) {
-                // AppIcon — hero target from splash, skips draw animation
+                // AppIcon — hero target from splash, skips draw animation.
+                // `isSource: false` tells matched-geo that the *splash* icon
+                // is the geometry source; this icon inherits from it. Without
+                // this, both icons claim to be sources, the bridge across the
+                // SplashView body-swap doesn't lock in, and the icon jumps to
+                // its native position instead of animating into it.
                 AppIconDrawAnimation(skipDrawAnimation: heroNamespace != nil)
                     .frame(width: 160, height: 160)
-                    .matchedGeometryEffect(id: "appIcon", in: iconNamespace)
+                    .matchedGeometryEffect(id: "appIcon", in: iconNamespace, isSource: heroNamespace == nil)
                     .padding(.top, 40)
                     .padding(.horizontal, 0)
                     .opacity(transition.appIconVisible ? 1 : 0)
@@ -54,22 +66,32 @@ struct ScanTransitionView: View {
                 Spacer()
                     .frame(maxHeight: isScanning ? 24 : .infinity)
 
-                // Morphing text (SCAN / SCANNING)
-                morphingText
+                // Heavy content — deferred until the splash → home hero
+                // matched-geometry has settled. The icon's hero transition
+                // and the initial layout of this subtree (morphingText is
+                // itself a GeometryReader + text measurement; scanContent
+                // is a complex subview) were competing for the main thread
+                // on first mount, visibly stuttering the icon's motion. The
+                // icon's top-of-VStack position is unaffected — the Spacers
+                // simply fill the remainder until this is rendered.
+                if heroContentReady {
+                    // Morphing text (SCAN / SCANNING)
+                    morphingText
 
-                // Home buttons — align under SCAN's "S" in home state; collapse in scan state
-                homeButtons
-                    .padding(.top, 16)
-                    .padding(.leading, isScanning ? AppLayout.horizontalInset : scanLeftInset)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .frame(height: isScanning ? 0 : nil)
-                    .clipped()
+                    // Home buttons — align under SCAN's "S" in home state; collapse in scan state
+                    homeButtons
+                        .padding(.top, 16)
+                        .padding(.leading, isScanning ? AppLayout.horizontalInset : scanLeftInset)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .frame(height: isScanning ? 0 : nil)
+                        .clipped()
 
-                // Scan content — elements stagger in after SCANNING positions
-                scanContent
-                    .frame(height: isScanning ? nil : 0)
-                    .clipped()
-                    .padding(.horizontal, AppLayout.horizontalInset)
+                    // Scan content — elements stagger in after SCANNING positions
+                    scanContent
+                        .frame(height: isScanning ? nil : 0)
+                        .clipped()
+                        .padding(.horizontal, AppLayout.horizontalInset)
+                }
 
                 Spacer()
                 Spacer()
@@ -114,17 +136,31 @@ struct ScanTransitionView: View {
         }
         .onAppear {
             if !hasPerformedInitialEntry {
-                // First appearance — hero lands, then run the entrance stagger.
                 hasPerformedInitialEntry = true
-                Task { @MainActor in
-                    try? await Task.sleep(for: .milliseconds(600))
-                    if reduceMotion { transition.jumpToEnteredState() }
-                    else { transition.animateEntrance() }
+                if reduceMotion {
+                    // No hero animation to wait for — render and settle now.
+                    heroContentReady = true
+                    transition.jumpToEnteredState()
+                } else {
+                    // First appearance — wait for the splash → home hero
+                    // matched-geometry spring (response 0.7 s) to settle
+                    // before rendering the heavy subtree and running the
+                    // entrance stagger.
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(750))
+                        heroContentReady = true
+                        // Small beat so the just-inserted subtree finishes
+                        // its first layout pass before its entrance animates.
+                        try? await Task.sleep(for: .milliseconds(50))
+                        transition.animateEntrance()
+                    }
                 }
             } else {
                 // Re-appearance after a back-pop (e.g., from ResultsView):
-                // play the reverse-exit so the screen isn't just present
-                // with no animation.
+                // no hero transition this time — render immediately and play
+                // the reverse-exit so the screen isn't just present with no
+                // animation.
+                heroContentReady = true
                 if reduceMotion { transition.jumpToHomeState() }
                 else { transition.animateEntranceFromResults() }
             }

@@ -32,6 +32,7 @@
 		3D7897FE13CE45E5A8AA71CB /* ImageCleanerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageCleanerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5391A83564D045B2BFFD31CF /* ImageCleanerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageCleanerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		D7A020D71AFB460DABE08F3F /* ImageCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		CF67C0DE0000000000000001 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -92,6 +93,7 @@
 		EF471DC613354B7D95FE3160 = {
 			isa = PBXGroup;
 			children = (
+				CF67C0DE0000000000000001 /* Config.xcconfig */,
 				3CD153E180274F19B4579AD5 /* ImageCleaner */,
 				B5886A5F48D34CE3975BF64E /* ImageCleanerTests */,
 				F6D16056166B4C1E8ED26C95 /* ImageCleanerUITests */,
@@ -404,6 +406,7 @@
 		};
 		AA0000010000000000000003 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CF67C0DE0000000000000001 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -415,6 +418,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PhotoPrune;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PhotoPrune needs access to your photo library to find duplicates, blank photos, and screenshots so you can reclaim storage.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -428,8 +432,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = me.kamaal.ImageCleaner;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.kamaal.photoPrune;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;
@@ -443,6 +447,7 @@
 		};
 		AA0000010000000000000004 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = CF67C0DE0000000000000001 /* Config.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
@@ -454,6 +459,7 @@
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = PhotoPrune;
+				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PhotoPrune needs access to your photo library to find duplicates, blank photos, and screenshots so you can reclaim storage.";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
@@ -467,8 +473,8 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = me.kamaal.ImageCleaner;
+				MARKETING_VERSION = 1.0.0;
+				PRODUCT_BUNDLE_IDENTIFIER = me.kamaal.photoPrune;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				STRING_CATALOG_GENERATE_SYMBOLS = YES;
 				SWIFT_APPROACHABLE_CONCURRENCY = YES;

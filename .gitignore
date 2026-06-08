@@ -1,0 +1,14 @@
+# macOS
+.DS_Store
+
+# Xcode build products
+build/
+DerivedData/
+
+# Xcode per-user state
+*.xcuserstate
+xcuserdata/
+
+# Secrets — RevenueCat API keys live in Config.xcconfig.
+# Create from Config.xcconfig.example on a fresh clone.
+Config.xcconfig

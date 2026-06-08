@@ -8,5 +8,13 @@
 		<string>Jost-700-Bold.ttf</string>
 		<string>Jost-500-Medium.ttf</string>
 	</array>
+	<!-- Injected at build time from Config.xcconfig's REVENUECAT_API_KEY via
+	     Xcode's Info.plist build-setting expansion (INFOPLIST_EXPAND_BUILD_SETTINGS,
+	     on by default). A custom key like this is NOT merged by the
+	     INFOPLIST_KEY_* mechanism — that only covers Apple-defined keys — so it
+	     must live in the physical Info.plist as a $() reference. Read back via
+	     ImageCleanerApp.revenueCatAPIKey(). Empty on a clone without Config.xcconfig. -->
+	<key>RevenueCatAPIKey</key>
+	<string>$(REVENUECAT_API_KEY)</string>
 </dict>
 </plist>

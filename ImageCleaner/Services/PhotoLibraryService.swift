@@ -110,8 +110,13 @@ final class PhotoLibraryService: PhotoLibrary {
         guard let asset = result.firstObject else { return nil }
 
         let options = PHImageRequestOptions()
-        options.resizeMode = .exact
-        options.deliveryMode = .opportunistic
+        // Analyzer-only path: dHash internally downsamples to 9×8 and pHash
+        // to 32×32, so we don't need an exact decode. .fast skips the
+        // expensive resize step, .fastFormat returns whichever pre-cached
+        // format PhotoKit has on hand and avoids re-decoding HEIC/JPEG from
+        // scratch when a small-format thumbnail is already on disk.
+        options.resizeMode = .fast
+        options.deliveryMode = .fastFormat
         options.isNetworkAccessAllowed = true
         options.isSynchronous = false
         options.version = .current
