@@ -50,6 +50,7 @@ final class ScanStore {
         self.modelContext = modelContext
         self.library = library
         self.scanner = scanner ?? PhotoScanner(library: library)
+        self.authorizationStatus = library.currentAuthorizationStatus
         reloadFromPersisted()
     }
 
@@ -96,7 +97,20 @@ final class ScanStore {
 
     // MARK: - Scan
 
-    func requestAuthorization() async {
+    /// Semantic access state the UI binds to. Derived from the synced
+    /// `authorizationStatus` (never the stale `.notDetermined` default).
+    var photoAccess: PhotoAccessState { PhotoAccessState(authorizationStatus) }
+
+    /// Re-reads the real system status. Call on `scenePhase == .active` so that
+    /// granting access in Settings and returning clears the in-app gate.
+    func refreshAuthorizationStatus() {
+        authorizationStatus = library.currentAuthorizationStatus
+    }
+
+    /// Triggers the system permission dialog (only shown by iOS when status is
+    /// `.notDetermined`) and syncs the result. After a prior denial this returns
+    /// the existing `.denied` without a dialog — callers must handle that.
+    func requestAccess() async {
         authorizationStatus = await library.requestAuthorization()
     }
 
@@ -110,7 +124,10 @@ final class ScanStore {
             authorizationStatus = await library.requestAuthorization()
         }
 
-        guard authorizationStatus == .authorized || authorizationStatus == .limited else {
+        // Full access only: `.limited` exposes just the user-picked subset,
+        // which a whole-library cleaner can't work with. The UI routes limited
+        // users to the recovery screen before they ever reach this guard.
+        guard authorizationStatus == .authorized else {
             lastError = "Photo library access denied."
             isScanning = false
             return
