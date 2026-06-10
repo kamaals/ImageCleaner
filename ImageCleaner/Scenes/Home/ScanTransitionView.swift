@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreText
+import UIKit
 
 struct ScanTransitionView: View {
     @Environment(\.colorScheme) private var colorScheme
@@ -11,6 +12,7 @@ struct ScanTransitionView: View {
     @State private var hasPerformedInitialEntry = false
     @State private var showCancelScanConfirmation = false
     @State private var pendingScanKickoff: Task<Void, Never>?
+    @State private var showPriming = false
     /// Gates the heavy morphingText / scanContent subtree on first appear.
     /// Stays `false` until the splash → home hero matched-geometry spring has
     /// settled, then flips to `true`. Keeps the icon's hero transition free
@@ -20,6 +22,11 @@ struct ScanTransitionView: View {
     @State private var heroContentReady = false
     @Bindable var homeVM: HomeViewModel
     var heroNamespace: Namespace.ID?
+    /// `true` when the app launched directly into the saved results (this home
+    /// screen starts covered by `ResultsView`). In that case the splash hero and
+    /// the staggered entrance shouldn't run underneath the results — the screen
+    /// just settles into its home state so it's ready when popped back to.
+    var startWithResults: Bool = false
     @Namespace private var localNamespace
 
     /// Delay between tapping SCAN and actually kicking off the scan task.
@@ -41,6 +48,25 @@ struct ScanTransitionView: View {
     }
 
     var body: some View {
+        Group {
+            switch store.photoAccess {
+            case .granted, .needsPriming:
+                homeContent
+            case .denied, .needsFullAccess, .restricted:
+                PhotoAccessView(state: store.photoAccess, onPrimaryAction: openPhotoSettings)
+            }
+        }
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { store.refreshAuthorizationStatus() }
+        }
+        .fullScreenCover(isPresented: $showPriming) {
+            PhotoAccessView(state: .needsPriming) {
+                Task { await requestAccessThenMaybeScan() }
+            }
+        }
+    }
+
+    private var homeContent: some View {
         GeometryReader { bodyGeo in
             // Shared left inset: align home buttons under the "S" of SCAN.
             // Computed once from screen width so both morphingText and homeButtons agree.
@@ -137,7 +163,15 @@ struct ScanTransitionView: View {
         .onAppear {
             if !hasPerformedInitialEntry {
                 hasPerformedInitialEntry = true
-                if reduceMotion {
+                if startWithResults {
+                    // Launched straight into the saved results — ResultsView is
+                    // already on the stack covering this screen. Settle home
+                    // instantly so there's no splash hero or delayed entrance
+                    // running underneath; whenever the user pops back, home is
+                    // already in place.
+                    heroContentReady = true
+                    transition.jumpToHomeState()
+                } else if reduceMotion {
                     // No hero animation to wait for — render and settle now.
                     heroContentReady = true
                     transition.jumpToEnteredState()
@@ -229,23 +263,7 @@ struct ScanTransitionView: View {
 
             return Button {
                 guard !isScanning else { return }
-                if reduceMotion {
-                    transition.jumpToScanState()
-                    scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
-                } else {
-                    transition.animateToScan()
-                    // Defer scan kickoff until the *entire* intro animation
-                    // has settled. Verified by an animate-only isolation test:
-                    // the morph + stagger play perfectly with no scan running;
-                    // overlapping the scan startup with the animation was the
-                    // entire cause of the stutter.
-                    pendingScanKickoff?.cancel()
-                    pendingScanKickoff = Task { @MainActor in
-                        try? await Task.sleep(for: Self.scanKickoffDelay)
-                        guard !Task.isCancelled else { return }
-                        scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
-                    }
-                }
+                handleScanTap()
             } label: {
                 Text("SCANNING")
                     .font(Font(Self.jostBlackUIFont(size: baseFontSize)))
@@ -329,6 +347,58 @@ struct ScanTransitionView: View {
     }
 
     // MARK: - Helpers
+
+    /// SCAN-button entry point. Branches on access: scan when granted, prime
+    /// when undetermined. The denied/limited/restricted cases are unreachable
+    /// here — those states replace `homeContent` with `PhotoAccessView`, so the
+    /// SCAN button isn't on screen.
+    private func handleScanTap() {
+        switch store.photoAccess {
+        case .granted:
+            startScanFlow()
+        case .needsPriming:
+            showPriming = true
+        case .denied, .needsFullAccess, .restricted:
+            break
+        }
+    }
+
+    /// The original SCAN choreography, unchanged: jump in Reduce Motion, else
+    /// animate the morph and defer the scan kickoff past the intro.
+    private func startScanFlow() {
+        if reduceMotion {
+            transition.jumpToScanState()
+            scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
+        } else {
+            transition.animateToScan()
+            pendingScanKickoff?.cancel()
+            pendingScanKickoff = Task { @MainActor in
+                try? await Task.sleep(for: Self.scanKickoffDelay)
+                guard !Task.isCancelled else { return }
+                scanVM.startScan(store: store, forceRescan: homeVM.forceRescan)
+            }
+        }
+    }
+
+    /// Priming-cover primary action: request access (shows the system dialog
+    /// because status is `.notDetermined`), dismiss the cover, then start the
+    /// scan if granted. If denied/limited, `body` swaps in the recovery state.
+    private func requestAccessThenMaybeScan() async {
+        await store.requestAccess()
+        showPriming = false
+        if store.photoAccess == .granted {
+            startScanFlow()
+        }
+    }
+
+    /// Recovery primary action: deep-link to the app's Settings page. iOS will
+    /// not re-show the permission dialog after a denial, so Settings is the only
+    /// path to full access.
+    private func openPhotoSettings() {
+        if let url = URL(string: UIApplication.openSettingsURLString) {
+            UIApplication.shared.open(url)
+        }
+    }
 
     // Reference size we measure against to derive ratios. Any size works mathematically;
     // 120 keeps diffs readable vs the old code.
