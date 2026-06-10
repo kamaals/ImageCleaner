@@ -1,5 +1,4 @@
 import SwiftUI
-import UIKit
 
 /// Full-screen Photos-permission state shown in place of the SCAN home when the
 /// app can't scan: priming before the first request, or a recovery prompt when
