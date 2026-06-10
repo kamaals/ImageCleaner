@@ -31,8 +31,8 @@
 /* Begin PBXFileReference section */
 		3D7897FE13CE45E5A8AA71CB /* ImageCleanerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageCleanerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		5391A83564D045B2BFFD31CF /* ImageCleanerUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ImageCleanerUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
-		D7A020D71AFB460DABE08F3F /* ImageCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		CF67C0DE0000000000000001 /* Config.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; path = Config.xcconfig; sourceTree = "<group>"; };
+		D7A020D71AFB460DABE08F3F /* ImageCleaner.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ImageCleaner.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */

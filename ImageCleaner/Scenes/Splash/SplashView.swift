@@ -3,6 +3,9 @@ import SwiftUI
 struct SplashView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    // Optional so SwiftUI previews (which don't inject a ScanStore) still build;
+    // resolves to the real store in the running app.
+    @Environment(ScanStore.self) private var store: ScanStore?
     @Namespace private var heroNamespace
     @State private var isFinished = false
     @State private var showWordmark = false
@@ -18,10 +21,23 @@ struct SplashView: View {
 
     var body: some View {
         if isFinished {
-            ContentView(heroNamespace: heroNamespace)
+            // When a completed scan is already saved, open straight into the
+            // results and skip the splash→home icon hero (its destination would
+            // be hidden behind ResultsView anyway). Otherwise hand off to the
+            // SCAN home screen with the hero, as before.
+            ContentView(
+                heroNamespace: hasSavedResults ? nil : heroNamespace,
+                startWithResults: hasSavedResults
+            )
         } else {
             splash
         }
+    }
+
+    /// A previously completed scan is persisted in SwiftData, so we can show
+    /// the last results immediately without re-scanning.
+    private var hasSavedResults: Bool {
+        store?.latestSession?.isComplete == true
     }
 
     private var splash: some View {
