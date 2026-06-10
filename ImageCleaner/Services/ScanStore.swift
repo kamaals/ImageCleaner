@@ -121,7 +121,7 @@ final class ScanStore {
         scanProgress = ScanProgress(phase: .fetching)
 
         if authorizationStatus == .notDetermined {
-            authorizationStatus = await library.requestAuthorization()
+            await requestAccess()
         }
 
         // Full access only: `.limited` exposes just the user-picked subset,

@@ -94,4 +94,17 @@ struct ScanStoreAuthorizationTests {
         #expect(store.lastError == "Photo library access denied.")
         #expect(store.latestSession == nil)
     }
+
+    @Test
+    func runScanBailsWhenAccessIsRestricted() async throws {
+        let container = try makeContainer()
+        let library = AuthStubLibrary(current: .restricted, requestResult: .restricted)
+        let store = ScanStore(modelContext: container.mainContext, library: library)
+
+        await store.runScan(forceRescan: false)
+
+        #expect(store.isScanning == false)
+        #expect(store.lastError == "Photo library access denied.")
+        #expect(store.latestSession == nil)
+    }
 }
