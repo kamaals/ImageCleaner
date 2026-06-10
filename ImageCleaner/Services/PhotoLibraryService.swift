@@ -30,6 +30,11 @@ enum PhotoLibraryError: Error, Equatable {
 
 /// Abstraction over PhotoKit so scanner + store can be unit-tested with a fake.
 protocol PhotoLibrary: Sendable {
+    /// Synchronous snapshot of the current authorization status. Unlike
+    /// `authorizationStatus()`, this never suspends — `PHPhotoLibrary`'s read is
+    /// itself synchronous — so callers (e.g. `ScanStore.init`) can seed state
+    /// immediately without an async hop.
+    var currentAuthorizationStatus: PHAuthorizationStatus { get }
     func authorizationStatus() async -> PHAuthorizationStatus
     func requestAuthorization() async -> PHAuthorizationStatus
     func fetchAllPhotoAssets() async -> [PhotoAssetDescriptor]
@@ -54,6 +59,10 @@ final class PhotoLibraryService: PhotoLibrary {
     }
 
     // MARK: - Authorization
+
+    var currentAuthorizationStatus: PHAuthorizationStatus {
+        PHPhotoLibrary.authorizationStatus(for: .readWrite)
+    }
 
     func authorizationStatus() async -> PHAuthorizationStatus {
         PHPhotoLibrary.authorizationStatus(for: .readWrite)

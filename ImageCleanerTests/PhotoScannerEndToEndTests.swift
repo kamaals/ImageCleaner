@@ -15,6 +15,7 @@ struct PhotoScannerEndToEndTests {
     final class FakeLibrary: PhotoLibrary, @unchecked Sendable {
         let descriptors: [PhotoAssetDescriptor]
         let thumbnails: [String: CGImage]
+        var currentAuthorizationStatus: PHAuthorizationStatus = .authorized
 
         init(descriptors: [PhotoAssetDescriptor], thumbnails: [String: CGImage]) {
             self.descriptors = descriptors

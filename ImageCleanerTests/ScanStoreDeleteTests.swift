@@ -13,6 +13,7 @@ struct ScanStoreDeleteTests {
     final class StubLibrary: PhotoLibrary, @unchecked Sendable {
         var deletedIDs: [String] = []
         var deletionShouldThrow: Error?
+        var currentAuthorizationStatus: PHAuthorizationStatus = .authorized
 
         func authorizationStatus() async -> PHAuthorizationStatus { .authorized }
         func requestAuthorization() async -> PHAuthorizationStatus { .authorized }
