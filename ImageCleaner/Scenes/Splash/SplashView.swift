@@ -21,12 +21,12 @@ struct SplashView: View {
 
     var body: some View {
         if isFinished {
-            // When a completed scan is already saved, open straight into the
-            // results and skip the splash→home icon hero (its destination would
-            // be hidden behind ResultsView anyway). Otherwise hand off to the
-            // SCAN home screen with the hero, as before.
+            // Hand off to the home stack. The icon hero only runs when the
+            // destination actually shows the SCAN icon — saved-results and
+            // permission-gate launches hide or replace it, so passing the
+            // namespace there would orphan the matchedGeometryEffect.
             ContentView(
-                heroNamespace: hasSavedResults ? nil : heroNamespace,
+                heroNamespace: launchHeroNamespace,
                 startWithResults: hasSavedResults
             )
         } else {
@@ -38,6 +38,21 @@ struct SplashView: View {
     /// the last results immediately without re-scanning.
     private var hasSavedResults: Bool {
         store?.latestSession?.isComplete == true
+    }
+
+    /// `true` when the home will render the full-screen permission state instead
+    /// of the SCAN icon (denied / limited / restricted). `.needsPriming` and
+    /// `.granted` are excluded — they show the normal SCAN home.
+    private var showsPermissionGate: Bool {
+        switch store?.photoAccess {
+        case .denied, .needsFullAccess, .restricted: true
+        default: false
+        }
+    }
+
+    /// The icon hero runs only for a normal SCAN-home handoff.
+    private var launchHeroNamespace: Namespace.ID? {
+        (hasSavedResults || showsPermissionGate) ? nil : heroNamespace
     }
 
     private var splash: some View {
