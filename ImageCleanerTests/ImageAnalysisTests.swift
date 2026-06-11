@@ -49,6 +49,49 @@ struct ImageAnalysisTests {
         }
     }
 
+    /// Light background with thin dark horizontal lines — stands in for a text
+    /// document or screenshot. Mostly one colour, but with real high-frequency
+    /// content, so a correct blank detector must NOT classify it as blank. This
+    /// is the exact shape that a coarse 8×8 grid averaged into "uniform".
+    private func documentLike(size: Int = 64, lineEvery: Int = 8) -> CGImage {
+        var pixels = [UInt8](repeating: 240, count: size * size)
+        for y in stride(from: 2, to: size, by: lineEvery) {
+            for x in 0..<size { pixels[y * size + x] = 20 }
+        }
+        return pixels.withUnsafeBytes { raw in
+            let provider = CGDataProvider(data: Data(raw) as CFData)!
+            return CGImage(
+                width: size, height: size,
+                bitsPerComponent: 8, bitsPerPixel: 8,
+                bytesPerRow: size,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                provider: provider, decode: nil,
+                shouldInterpolate: false, intent: .defaultIntent
+            )!
+        }
+    }
+
+    /// Mostly-black frame with a centred bright block — stands in for a dark
+    /// photo with a subject (silhouette, neon sign). Not uniform → not blank.
+    private func darkWithSubject(size: Int = 64) -> CGImage {
+        var pixels = [UInt8](repeating: 0, count: size * size)
+        let lo = size / 4, hi = size * 3 / 4
+        for y in lo..<hi { for x in lo..<hi { pixels[y * size + x] = 255 } }
+        return pixels.withUnsafeBytes { raw in
+            let provider = CGDataProvider(data: Data(raw) as CFData)!
+            return CGImage(
+                width: size, height: size,
+                bitsPerComponent: 8, bitsPerPixel: 8,
+                bytesPerRow: size,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGBitmapInfo(rawValue: CGImageAlphaInfo.none.rawValue),
+                provider: provider, decode: nil,
+                shouldInterpolate: false, intent: .defaultIntent
+            )!
+        }
+    }
+
     // MARK: - dHash
 
     @Test func dHashOfSolidImageIsZero() {
@@ -100,6 +143,35 @@ struct ImageAnalysisTests {
     @Test func varianceOfCheckerIsHigh() {
         let (_, variance) = ImageAnalysis.brightnessAndVariance(checker(cell: 4))
         #expect(variance > 0.05)
+    }
+
+    // MARK: - Blank detection (solid colour = blank, real content = not blank)
+
+    @Test func solidImagesOfAnyToneAreBlank() {
+        for tone: UInt8 in [0, 64, 128, 200, 255] {
+            let (_, variance) = ImageAnalysis.brightnessAndVariance(solidGray(tone))
+            #expect(ImageAnalysis.isBlank(variance: variance), "solid \(tone) should be blank")
+        }
+    }
+
+    @Test func documentLikeImageIsNotBlank() {
+        // Regression: a sparse-content document collapsed to a near-uniform 8×8
+        // grid and was wrongly flagged blank. At full resolution its variance is
+        // well above the blank threshold.
+        let (_, variance) = ImageAnalysis.brightnessAndVariance(documentLike())
+        #expect(variance > 0.0004)
+        #expect(!ImageAnalysis.isBlank(variance: variance))
+    }
+
+    @Test func darkPhotoWithSubjectIsNotBlank() {
+        let (_, variance) = ImageAnalysis.brightnessAndVariance(darkWithSubject())
+        #expect(!ImageAnalysis.isBlank(variance: variance))
+    }
+
+    @Test func isBlankAcceptsUpToTwoPercentDeviation() {
+        // √variance is the standard deviation; the ceiling is 2%.
+        #expect(ImageAnalysis.isBlank(variance: 0.019 * 0.019))  // 1.9% std → blank
+        #expect(!ImageAnalysis.isBlank(variance: 0.03 * 0.03))   // 3% std → not blank
     }
 
     // MARK: - cluster

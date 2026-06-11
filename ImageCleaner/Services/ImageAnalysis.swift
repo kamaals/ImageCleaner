@@ -104,11 +104,15 @@ nonisolated enum ImageAnalysis {
         return hash
     }
 
-    /// Mean brightness (0…1) plus the variance of brightness across an 8×8
-    /// grid. The grid variance catches near-uniform images (blanks, solid
-    /// colors) that still have some overall luminance.
+    /// Mean brightness (0…1) plus the variance of per-cell brightness across a
+    /// 64×64 grayscale grid.
+    ///
+    /// The fine grid is deliberate. A coarse grid (the previous 8×8) averages
+    /// text and edges away, so a document or screenshot reads as near-uniform
+    /// and gets misclassified as blank. At 64×64 real content produces real
+    /// variance, while a genuinely solid image stays near zero at any resolution.
     static func brightnessAndVariance(_ cgImage: CGImage) -> (brightness: Double, variance: Double) {
-        let grid = 8
+        let grid = 64
         let total = grid * grid
         var pixels = [UInt8](repeating: 0, count: total)
         guard let context = CGContext(
@@ -126,6 +130,20 @@ nonisolated enum ImageAnalysis {
         let mean = normalized.reduce(0, +) / Double(total)
         let variance = normalized.reduce(0) { $0 + ($1 - mean) * ($1 - mean) } / Double(total)
         return (mean, variance)
+    }
+
+    /// Whether `variance` (from `brightnessAndVariance`) marks the image as a
+    /// "blank" — i.e. a near-solid image, the same colour across every pixel.
+    ///
+    /// The test is on the standard deviation (√variance): the image is blank
+    /// when its brightness deviates from flat by no more than `stdCeiling`.
+    /// Default `0.02` accepts 2% deviation, so genuine solid-colour shots
+    /// (all-black, all-white, an accidental solid frame) qualify while anything
+    /// with real content — text, a subject, a gradient — does not. Hue is
+    /// ignored: the analysis is grayscale, so any single solid colour reads as
+    /// uniform.
+    static func isBlank(variance: Double, stdCeiling: Double = 0.02) -> Bool {
+        variance.squareRoot() <= stdCeiling
     }
 
     /// Greedy Hamming-distance clustering. Input is hash → id pairs; output

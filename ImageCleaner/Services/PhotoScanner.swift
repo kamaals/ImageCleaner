@@ -112,9 +112,10 @@ actor PhotoScanner {
     /// burst alternates, reshots. Surfaced in a separate UI with human-review
     /// framing.
     private let similarDHashThreshold: Int
-    private let blankBrightnessCeiling: Double
-    private let blankVarianceCeiling: Double
-    private let uniformVarianceCeiling: Double
+    /// A photo is "blank" when its per-cell brightness standard deviation is
+    /// within this fraction of flat — essentially one solid colour across every
+    /// pixel. `0.02` accepts 2% deviation.
+    private let blankStdCeiling: Double
 
     /// Pause/resume state. `pauseContinuation` is only non-nil while the scan
     /// loop is parked inside `awaitResumeIfPaused()`.
@@ -131,9 +132,7 @@ actor PhotoScanner {
         exactDHashThreshold: Int = 2,
         exactPHashThreshold: Int = 4,
         similarDHashThreshold: Int = 5,
-        blankBrightnessCeiling: Double = 0.05,
-        blankVarianceCeiling: Double = 0.01,
-        uniformVarianceCeiling: Double = 0.0005
+        blankStdCeiling: Double = 0.02
     ) {
         self.library = library
         self.thumbnailPixelSize = thumbnailPixelSize
@@ -141,9 +140,7 @@ actor PhotoScanner {
         self.exactDHashThreshold = exactDHashThreshold
         self.exactPHashThreshold = exactPHashThreshold
         self.similarDHashThreshold = similarDHashThreshold
-        self.blankBrightnessCeiling = blankBrightnessCeiling
-        self.blankVarianceCeiling = blankVarianceCeiling
-        self.uniformVarianceCeiling = uniformVarianceCeiling
+        self.blankStdCeiling = blankStdCeiling
     }
 
     // MARK: - Pause / Resume
@@ -319,13 +316,7 @@ actor PhotoScanner {
                 createdAt: descriptor.createdAt,
                 fileSize: descriptor.estimatedFileSize,
                 isScreenshot: descriptor.isScreenshot,
-                isBlank: Self.isBlank(
-                    brightness: cached.brightness,
-                    variance: cached.variance,
-                    blankBrightnessCeiling: blankBrightnessCeiling,
-                    blankVarianceCeiling: blankVarianceCeiling,
-                    uniformVarianceCeiling: uniformVarianceCeiling
-                ),
+                isBlank: ImageAnalysis.isBlank(variance: cached.variance, stdCeiling: blankStdCeiling),
                 dHash: cached.dHash,
                 pHash: cached.pHash,
                 brightness: cached.brightness,
@@ -368,13 +359,7 @@ actor PhotoScanner {
             createdAt: descriptor.createdAt,
             fileSize: descriptor.estimatedFileSize,
             isScreenshot: descriptor.isScreenshot,
-            isBlank: Self.isBlank(
-                brightness: brightness,
-                variance: variance,
-                blankBrightnessCeiling: blankBrightnessCeiling,
-                blankVarianceCeiling: blankVarianceCeiling,
-                uniformVarianceCeiling: uniformVarianceCeiling
-            ),
+            isBlank: ImageAnalysis.isBlank(variance: variance, stdCeiling: blankStdCeiling),
             dHash: dHash,
             pHash: pHash,
             brightness: brightness,
@@ -382,17 +367,6 @@ actor PhotoScanner {
             burstIdentifier: descriptor.burstIdentifier,
             wasCached: false
         )
-    }
-
-    private static func isBlank(
-        brightness: Double,
-        variance: Double,
-        blankBrightnessCeiling: Double,
-        blankVarianceCeiling: Double,
-        uniformVarianceCeiling: Double
-    ) -> Bool {
-        (brightness < blankBrightnessCeiling && variance < blankVarianceCeiling)
-            || variance < uniformVarianceCeiling
     }
 
     // MARK: - Phase D
