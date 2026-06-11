@@ -16,7 +16,12 @@ struct PhotoAssetDescriptor: Sendable, Hashable {
     /// they're consecutive shutter presses (blink variants, etc.).
     let burstIdentifier: String?
 
-    var isScreenshot: Bool {
+    // `nonisolated` because the project defaults to `@MainActor` isolation
+    // (SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor), which would otherwise make
+    // this computed property main-actor-isolated and unreachable from the
+    // `PhotoScanner` actor. The computation is pure — it only reads the
+    // Sendable `let mediaSubtypes` — so opting out of isolation is safe.
+    nonisolated var isScreenshot: Bool {
         PHAssetMediaSubtype(rawValue: mediaSubtypes).contains(.photoScreenshot)
     }
 }
@@ -54,7 +59,11 @@ protocol PhotoLibrary: Sendable {
 final class PhotoLibraryService: PhotoLibrary {
     private let imageManager: PHImageManager
 
-    init(imageManager: PHImageManager = .default()) {
+    // `nonisolated` so the parameterless form can be used as a default argument
+    // (`ScanStore.init(library: PhotoLibrary = PhotoLibraryService())`), which is
+    // evaluated in a nonisolated context. Without it the project's
+    // MainActor-by-default isolation makes this init `@MainActor`.
+    nonisolated init(imageManager: PHImageManager = .default()) {
         self.imageManager = imageManager
     }
 

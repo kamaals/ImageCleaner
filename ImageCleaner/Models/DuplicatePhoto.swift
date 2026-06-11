@@ -2,7 +2,10 @@ import Foundation
 import SwiftUI
 
 /// Represents a single photo within a duplicate group
-struct DuplicateImage: Identifiable, Equatable {
+// `nonisolated`: pure model value type used off the main actor (e.g. inside the
+// `nonisolated` `DuplicatePhoto.mockData` literal). Opts out of the project's
+// MainActor-by-default isolation.
+nonisolated struct DuplicateImage: Identifiable, Equatable {
     let id: UUID
     /// PhotoKit asset identifier when backed by a real photo; `nil` for mocks.
     let localIdentifier: String?
@@ -25,7 +28,9 @@ struct DuplicateImage: Identifiable, Equatable {
 }
 
 /// Represents a group of duplicate photos
-struct DuplicatePhoto: Identifiable, Equatable {
+// `nonisolated` so `mockData` can be referenced as a default argument from a
+// nonisolated context; opts out of the project's MainActor-by-default isolation.
+nonisolated struct DuplicatePhoto: Identifiable, Equatable {
     let id: UUID
     /// Aspect ratio (width / height) of the primary photo, used by the
     /// Pinterest grid to size the cell in proportion to its column width.

@@ -3,7 +3,11 @@ import CoreGraphics
 
 /// Snapshot of progress during a scan run. Emitted by `PhotoScanner.scan` on
 /// every batch boundary and bridged back to the main-actor ViewModel.
-struct ScanProgress: Sendable, Equatable {
+// `nonisolated`: a Sendable progress value passed through `@Sendable` scan
+// callbacks. `Sendable` alone doesn't help under the project's MainActor-by-
+// default isolation — members would still be `@MainActor` — so opt the whole
+// value type out of isolation.
+nonisolated struct ScanProgress: Sendable, Equatable {
     enum Phase: Sendable, Equatable {
         case fetching
         case classifying

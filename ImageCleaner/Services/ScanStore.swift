@@ -161,10 +161,12 @@ final class ScanStore {
                     forceRescan: forceRescan,
                     cache: cache,
                     onProgress: { [weak self] snapshot in
-                        Task { @MainActor in self?.scanProgress = snapshot }
+                        guard let self else { return }
+                        Task { @MainActor in self.scanProgress = snapshot }
                     },
                     onPartialResult: { [weak self] partial in
-                        Task { @MainActor in self?.applyPartialResult(partial) }
+                        guard let self else { return }
+                        Task { @MainActor in self.applyPartialResult(partial) }
                     }
                 )
                 try Task.checkCancellation()

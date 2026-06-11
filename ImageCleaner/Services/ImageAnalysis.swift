@@ -4,7 +4,12 @@ import Accelerate
 
 /// Pure image-analysis helpers used by `PhotoScanner`. Extracted so they can
 /// be unit-tested against synthetic `CGImage`s without involving PhotoKit.
-enum ImageAnalysis {
+///
+/// `nonisolated` because these are pure functions called from the `PhotoScanner`
+/// actor and other nonisolated contexts; without it the project's
+/// `SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor` setting would infer `@MainActor`
+/// on every member and make them unreachable off the main actor.
+nonisolated enum ImageAnalysis {
     /// 64-bit difference hash. Resizes `cgImage` to 9×8 grayscale, then for
     /// each of 64 cells sets a bit if pixel > right-neighbor. Tiny, stable,
     /// forgiving of cropping/compression — the classic dHash.
