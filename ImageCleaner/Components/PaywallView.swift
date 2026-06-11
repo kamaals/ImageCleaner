@@ -28,6 +28,12 @@ struct AppPaywallView: View {
     @State private var isPurchasing = false
     @State private var errorAlert: PurchaseErrorAlert?
 
+    // MARK: - Legal links (required by App Store Guideline 3.1.2)
+    // Both pages are hosted on the PhotoPrune domain and verified live (HTTP 200).
+    // Keep these in sync with the URLs configured in App Store Connect.
+    private static let termsOfUseURL = URL(string: "https://photoprune.darkmatter.it.com/eula")!
+    private static let privacyPolicyURL = URL(string: "https://photoprune.darkmatter.it.com/privacy-policy")!
+
     var body: some View {
         ZStack {
             Color.white.ignoresSafeArea()
@@ -77,6 +83,8 @@ struct AppPaywallView: View {
                 ctaSection
                     .padding(.bottom, 20)
                 restoreButton
+                    .padding(.bottom, 20)
+                legalFooter
             }
             .padding(.horizontal, 24)
             .padding(.top, 16)
@@ -298,6 +306,31 @@ struct AppPaywallView: View {
             .disabled(isPurchasing)
             Spacer()
         }
+    }
+
+    /// Auto-renewal disclosure + Terms / Privacy links required by App Store
+    /// Guideline 3.1.2. Kept on the paywall itself so the terms are visible at
+    /// the point of purchase.
+    private var legalFooter: some View {
+        let muted = Color(red: 0.54, green: 0.54, blue: 0.54)
+        return VStack(spacing: 12) {
+            Text("Subscription automatically renews unless canceled at least 24 hours before the end of the current period. Manage or cancel anytime in your App Store account settings.")
+                .font(AppFont.jost(size: 12, weight: 400))
+                .foregroundStyle(muted)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+
+            HStack(spacing: 6) {
+                Link("Terms of Use", destination: Self.termsOfUseURL)
+                Text("·").foregroundStyle(muted)
+                Link("Privacy Policy", destination: Self.privacyPolicyURL)
+            }
+            .font(AppFont.jost(size: 12, weight: 500))
+            .tint(muted)
+            .foregroundStyle(muted)
+            .underline()
+        }
+        .frame(maxWidth: .infinity)
     }
 
     // MARK: - Load / error views
