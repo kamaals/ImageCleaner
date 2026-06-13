@@ -123,7 +123,7 @@ struct PhotoAccessView: View {
 
     private var buttonTitle: String {
         switch state {
-        case .needsPriming: "ALLOW ACCESS"
+        case .needsPriming: "NEXT"
         case .denied, .needsFullAccess, .restricted: "OPEN SETTINGS"
         case .granted: ""
         }
